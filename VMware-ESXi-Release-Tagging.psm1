@@ -164,7 +164,7 @@ Function Set-ESXi-tag-by-release {
 
         # Test if we have that the tag in the hash table, otherwise we cannot tag the host!
         $current_build = $vmhost.build
-        if ($hashtable_builds_tags.get_item($current_build)) {
+        if ($hashtable_builds_tags.ContainsKey($current_build)) {
             # Lookup the build in the hasbtable
             $tag_label = $hashtable_builds_tags.get_item($vmhost.build)
             # Get the tag we need for the current host
