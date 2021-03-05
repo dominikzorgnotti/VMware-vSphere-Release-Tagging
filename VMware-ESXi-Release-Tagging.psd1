@@ -12,13 +12,13 @@
 RootModule = 'VMware-ESXi-Release-Tagging.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.1'
+ModuleVersion = '0.0.2'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
 
 # ID used to uniquely identify this module
-GUID = 'c39e67cf-5f59-467d-9766-2019d8fa670b'
+GUID = '0cdb6822-cb05-4a78-a386-89b56de980c7'
 
 # Author of this module
 Author = 'Dominik Zorgnotti'
