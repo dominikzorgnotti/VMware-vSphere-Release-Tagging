@@ -25,7 +25,7 @@ Permissions must be sufficient to add tags and a tag category at global level an
 ```powershell
 # connect-viserver $vcenter
 ```
-6. Execute the script
+6. Execute the script but be sure to specify the right path to the JSON file
 ```powershell
 # Set-ESXiTagbyRelease -ESXibuildsJSONFile kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 ```
