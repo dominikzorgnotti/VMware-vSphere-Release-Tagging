@@ -1,91 +1,4 @@
-#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag ESXi with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Get-ESXiBuildsfromFile", "New-ESXiTagbyRelease", "Set-ESXiTagbyRelease") -PowerShellVersion '7.0'
-
-Function Get-ESXiBuildsfromFile {
-    <#
-        .NOTES
-            (c) 2021 Dominik Zorgnotti (dominik@why-did-it.fail)
-        .DESCRIPTION
-            Reads ESXi build information from a JSON file 
-        .PARAMETER ESXibuildsJSON
-            A json file containing ESXi build information, it is expected that the JSON key is equal to the build number.
-            You can fine such a file here: https://github.com/dominikzorgnotti/vmware_product_releases_machine-readable/blob/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
-
-            # TODO, will try to load this directly from the internet
-        #>
-    param(
-        [Parameter(Mandatory = $true)][string]$ESXibuildsJSON
-    )
-    Try {
-        $ESXiReleaseTable = Get-Content -Raw -Path $ESXibuildsJSON | ConvertFrom-Json
-    }
-    catch [System.IO.FileNotFoundException] {
-        Write-Error -Message "Could not find $ESXibuildsJSON" -ErrorAction Stop
-    }
-    return $ESXiReleaseTable
-}
-    
-
-Function New-ESXiTagbyRelease {
-    <#
-        .NOTES
-            (c) 2021 Dominik Zorgnotti (dominik@why-did-it.fail)
-        .DESCRIPTION
-            Use this function to add a tag to ESXi hosts that will contain the release (canonical) name, e.g. ESXi_7.0_Update_1c
-            Returns a hashtable that contains a mapping between builds and tag names
-        .PARAMETER ESXiBuild
-            The build number of an ESXi host as provided by the build properity from vm-host 
-        .PARAMETER ESXiReleaseTable
-            An object with converted JSON data as provided the function Get-ESXiBuildsfromFile
-        .PARAMETER ESXiReleaseCategoryName
-            The category in which the tags will be created as specified in the function new-esx-release-tag-category
-    #>
-    param(
-        [Parameter(Mandatory = $true)]$ESXiBuildList,
-        [Parameter(Mandatory = $true)]$ESXiReleaseTable,
-        [Parameter(Mandatory = $true)]$ESXiReleaseCategoryName
-    )
-
-    # Relate buildnumber to tag name
-    $mapping_table = @{}
-    
-    # Build a tag for each unique build
-    foreach ($ESXiBuild in $ESXiBuildList) {
-        Write-Host "Working on tags for ESXi build $ESXiBuild ..."
-        # Check if we have that build in our list
-        if ($ESXiBuild -in $ESXiReleaseTable.PSobject.Properties.Name) {
-            # Identify the release name based on the build provided as input
-            $requested_release_name = $ESXiReleaseTable.($ESXiBuild)."Release Name"
-                          
-            # Avoid escaping issues by replacing spaces with underscores
-            $requested_release_name_fmt = $requested_release_name.Replace(" ", "_")
-
-            # Add a mapping between build and future tag
-            $mapping_table.Add($ESXiBuild, $requested_release_name_fmt)
-
-            # Identify if a release tag for this build already exists
-            if (Get-Tag -name $requested_release_name_fmt -ErrorAction SilentlyContinue) {
-                Write-host "Nothing to do. Tag $requested_release_name_fmt already exists"
-            }
-            else {
-                write-host "Creating tag $requested_release_name_fmt"
-                New-Tag -name $requested_release_name_fmt -Category $ESXiReleaseCategoryName -Description ($ESXiReleaseTable.($ESXiBuild)."Release Name" + " - build: " + $ESXiBuild)
-            }
-    
-        }
-        else {
-            write-host "Cannot create a tag for the provided build $ESXiBuild." -ForegroundColor Red
-        }
-    }
-    # Create a NaN tag
-    $mapping_table.Add("nan", "no_matching_release")
-    $nan_tag = $mapping_table["nan"]
-    if (-not (Get-Tag -Name $nan_tag -ErrorAction SilentlyContinue)) {
-        New-Tag -name $nan_tag -Category $ESXiReleaseCategoryName -Description "No matching release found for the build number"
-    }
-    return $mapping_table
-}
-
-
+#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag ESXi with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-ESXiTagbyRelease") -PowerShellVersion '7.0'
 Function Set-ESXiTagbyRelease {
     <#
 .SYNOPSIS
@@ -137,7 +50,20 @@ Function Set-ESXiTagbyRelease {
 
     # Converting JSON file to Powershell object
     Write-Host "Reading release info from $ESXibuildsJSONFile"
-    $ESXiReleaseTable = Get-ESXiBuildsfromFile -ESXibuildsJSON $ESXibuildsJSONFile
+    Try {
+        $ESXiReleaseTable = Get-Content -Raw -Path $ESXibuildsJSONFile | ConvertFrom-Json
+    }
+    catch [System.IO.FileNotFoundException] {
+        Write-Error -Message "Could not find $ESXibuildsJSON" -ErrorAction Stop
+    }
+  
+    # Until I can fix it, all hosts that will are not disconnected will be targeted
+    Write-Host "Building list of all ESXi hosts..."
+    $vmhost_list = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
+    
+    # Create a unique set of builds
+    Write-Host "Building list of unique ESXi builds from the previous output"
+    $unique_builds = $vmhost_list.build | Get-Unique
 
     # Getting tag categories ready to contain tags 
     Write-Host "Creating required tag category with name $ESXiReleaseCategoryName"
@@ -148,18 +74,54 @@ Function Set-ESXiTagbyRelease {
         New-TagCategory -name $ESXiReleaseCategoryName -Cardinality "Single" -description "The category holds the ESXi release name tags" -EntityType "VMHost"
     }
     
-    # Until I can fix it, all hosts that will are not disconnected will be targeted
-    Write-Host "Building list of all ESXi hosts..."
-    $vmhost_list = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
-    
-    # Create a unique set of builds
-    Write-Host "Building list of unique ESXi builds from the previous output"
-    $unique_builds = $vmhost_list.build | Get-Unique
+    # Create a Null tag
+    Write-Host "Creating a Null tag in case the build number cannot be found"
+    $null_tag_name = "no_matching_release"
+    if (-not (Get-Tag -Name $null_tag_name -ErrorAction SilentlyContinue)) {
+        New-Tag -name $null_tag_name -Category $ESXiReleaseCategoryName -Description "No matching release found for the build number"
+    }
    
-    # Holds a smaller mapping hash table between ESXi builds and actual tag names
+    # Build a tag for each unique build
     Write-Host "Trying to create the required tags for each of the identified builds"
-    $hashtable_builds_tags = New-ESXiTagbyRelease -ESXiBuildList $unique_builds -ESXiReleaseCategoryName $ESXiReleaseCategoryName -ESXiReleaseTable $ESXiReleaseTable
 
+    $mapping_table = @{}
+
+    foreach ($ESXiBuild in $unique_builds) {
+        Write-Host "Working on tags for ESXi build $ESXiBuild ..."
+        
+        if ($ESXiBuild -in $ESXiReleaseTable.PSobject.Properties.Name) {
+            # Identify the release name based on the build provided as input
+            $requested_release_name = $ESXiReleaseTable.($ESXiBuild)."Release Name".Replace(" ", "_")
+                          
+            # Avoid escaping issues by replacing spaces with underscores
+            $requested_release_name_fmt = $requested_release_name.Replace(" ", "_")
+
+            # Put the build and key tag name into the table
+            [string]$build_as_string = $ESXiBuild
+            $mapping_table.add($build_as_string, $requested_release_name_fmt)
+
+        }
+        else {
+            write-host "Cannot find a name for the provided build $ESXiBuild." -ForegroundColor Red
+            $requested_release_name_fmt = $false
+        }
+        
+        # If the build is found in our table, create a tag
+            if ($requested_release_name_fmt) {
+
+            if (Get-Tag -name $requested_release_name_fmt -ErrorAction SilentlyContinue) {
+                Write-host "Nothing to do. Tag $requested_release_name_fmt already exists"
+            }
+            else {
+                write-host "Creating tag $requested_release_name_fmt"
+                New-Tag -name $requested_release_name_fmt -Category $ESXiReleaseCategoryName -Description ($ESXiReleaseTable.($ESXiBuild)."Release Name" + " - build: " + $ESXiBuild)
+            }
+            
+
+
+        }
+        }
+    
     # Some nicer output to determine where we are
     Write-Host ""
     Write-Host "Phase 2: Apply information to ESXi hosts" -ForegroundColor Magenta
@@ -175,11 +137,11 @@ Function Set-ESXiTagbyRelease {
             Remove-TagAssignment -TagAssignment $current_host_tag -Confirm:$false
         }
 
-        # Test if we have that the tag in the hash table, otherwise we cannot tag the host!
-        $current_build = $vmhost.build
-        if ($hashtable_builds_tags.ContainsKey($current_build)) {
+        # Test if we can resolve the build, otherwise we cannot tag the host!
+        [string]$current_build = $vmhost.build
+        if ( $mapping_table.ContainsKey($current_build)) {
             # Lookup the build in the hasbtable
-            $tag_label = $hashtable_builds_tags[($vmhost.build)]
+            $tag_label = $mapping_table.$current_build
             # Get the tag we need for the current host
             $release_tag = get-tag -name $tag_label
 
@@ -189,9 +151,9 @@ Function Set-ESXiTagbyRelease {
         }
         else {
             # Adding NaN Tag to a host if we cannot look it up
-            $nan_tag = get-tag -Name $hashtable_builds_tags["nan"]
+            $null_tag = get-tag -Name $null_tag_name
             Write-Host "Build $current_build of host $vmhost cannot be identified " -ForegroundColor Yellow
-            New-TagAssignment -tag $nan_tag -Entity $vmhost
+            New-TagAssignment -tag $null_tag -Entity $vmhost
         }
     }
     

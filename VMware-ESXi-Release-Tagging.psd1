@@ -18,7 +18,7 @@ ModuleVersion = '0.0.1'
 # CompatiblePSEditions = @()
 
 # ID used to uniquely identify this module
-GUID = '155a957b-6cb3-4791-80c7-d4e074181e4f'
+GUID = 'c39e67cf-5f59-467d-9766-2019d8fa670b'
 
 # Author of this module
 Author = 'Dominik Zorgnotti'
@@ -70,8 +70,7 @@ RequiredModules = @('VMware.VimAutomation.Core',
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = 'Get-ESXiBuildsfromFile', 'New-ESXiTagbyRelease', 
-               'Set-ESXiTagbyRelease'
+FunctionsToExport = 'Set-ESXiTagbyRelease'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = '*'
