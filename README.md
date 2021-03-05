@@ -8,7 +8,7 @@ This PowerShell module will take a JSON file as an input and tag ESXi servers in
 ```powershell
 # git clone https://github.com/dominikzorgnotti/VMware-ESXi-Release-Tagging.git
 ```
-2. Move into the directory
+2. Move into the cloned directory
 ```powershell
 # cd VMware-ESXi-Release-Tagging
 ```
@@ -16,21 +16,17 @@ This PowerShell module will take a JSON file as an input and tag ESXi servers in
 ```text
 Use curl, wget, browser, ... to get https://github.com/dominikzorgnotti/vmware_product_releases_machine-readable/blob/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 ```
-4. Load PowerCLI  
-```powershell
-# Import-Module VMware.PowerCLI
-```
-5. Import the module
+4. Import the module
 ```powershell
 # Import-Module VMware-ESXi-Release-Tagging.psd1
 ```
-6. Make sure you are connected to a vCenter
+5. Make sure you are connected to a vCenter
 ```powershell
 # connect-viserver $vcenter
 ```
-7. Execute the script
+6. Execute the script
 ```powershell
-# Set-ESXi-tag-by-release -ESXibuildsJSONFile kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
+# Set-ESXiTagbyRelease -ESXibuildsJSONFile kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 ```
 
 ## Testing

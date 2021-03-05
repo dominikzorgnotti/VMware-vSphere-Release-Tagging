@@ -1,7 +1,6 @@
-#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag ESXi with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules "VMware.VimAutomation.Core, VMware.VimAutomation.Common" -FunctionsToExport "Set-ESXi-tag-by-release" -PowerShellVersion '6.0'
+#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag ESXi with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Get-ESXiBuildsfromFile", "New-ESXiTagbyRelease", "Set-ESXiTagbyRelease") -PowerShellVersion '6.0'
 
-
-Function Get-ESXi-builds-from-file {
+Function Get-ESXiBuildsfromFile {
     <#
         .NOTES
             (c) 2021 Dominik Zorgnotti (dominik@why-did-it.fail)
@@ -26,7 +25,7 @@ Function Get-ESXi-builds-from-file {
 }
     
 
-Function New-ESXi-tag-by-release {
+Function New-ESXiTagbyRelease {
     <#
         .NOTES
             (c) 2021 Dominik Zorgnotti (dominik@why-did-it.fail)
@@ -36,7 +35,7 @@ Function New-ESXi-tag-by-release {
         .PARAMETER ESXiBuild
             The build number of an ESXi host as provided by the build properity from vm-host 
         .PARAMETER ESXiReleaseTable
-            An object with converted JSON data as provided the function Get-ESXi-builds-from-file
+            An object with converted JSON data as provided the function Get-ESXiBuildsfromFile
         .PARAMETER ESXiReleaseCategoryName
             The category in which the tags will be created as specified in the function new-esx-release-tag-category
     #>
@@ -87,7 +86,7 @@ Function New-ESXi-tag-by-release {
 }
 
 
-Function Set-ESXi-tag-by-release {
+Function Set-ESXiTagbyRelease {
     <#
 .SYNOPSIS
   Assigns a tag containing the vSphere release name to ESXi hosts.
@@ -138,7 +137,7 @@ Function Set-ESXi-tag-by-release {
 
     # Converting JSON file to Powershell object
     Write-Host "Reading release info from $ESXibuildsJSONFile"
-    $ESXiReleaseTable = Get-ESXi-builds-from-file -ESXibuildsJSON $ESXibuildsJSONFile
+    $ESXiReleaseTable = Get-ESXiBuildsfromFile -ESXibuildsJSON $ESXibuildsJSONFile
 
     # Getting tag categories ready to contain tags 
     Write-Host "Creating required tag category with name $ESXiReleaseCategoryName"
@@ -159,7 +158,7 @@ Function Set-ESXi-tag-by-release {
    
     # Holds a smaller mapping hash table between ESXi builds and actual tag names
     Write-Host "Trying to create the required tags for each of the identified builds"
-    [hashtable]$hashtable_builds_tags = New-ESXi-tag-by-release -ESXiBuildList $unique_builds -ESXiReleaseCategoryName $ESXiReleaseCategoryName -ESXiReleaseTable $ESXiReleaseTable
+    $hashtable_builds_tags = New-ESXiTagbyRelease -ESXiBuildList $unique_builds -ESXiReleaseCategoryName $ESXiReleaseCategoryName -ESXiReleaseTable $ESXiReleaseTable
 
     # Some nicer output to determine where we are
     Write-Host ""
