@@ -14,7 +14,7 @@ This PowerShell module will take a JSON file as an input and tag ESXi servers in
 ```
 3. Get the JSON file with the ESXi release builds:
 ```text
-Use curl, wget, browser, ... to get https://github.com/dominikzorgnotti/vmware_product_releases_machine-readable/blob/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
+Use curl, wget, browser, ... to get https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 ```
 4. Import the module from the current working directory
 ```powershell
@@ -43,3 +43,7 @@ I have tested the module against:
 - PowerShell: 
   - Core: v7.1.2
 - PowerCli modules: 12.2
+
+## Acknowledgements
+
+Thanks to [Michael](https://github.com/mdhemmi) for being the guinea pig :-)
