@@ -74,14 +74,14 @@ Function New-ESXi-tag-by-release {
     
         }
         else {
-            write-host "Cannot create a tag for the provided build number."
+            write-host "Cannot create a tag for the provided build $ESXiBuild." -ForegroundColor Red
         }
-        # Create a NaN tag
-        $mapping_table.Add("nan", "no_matching_release")
-        $nan_tag = $mapping_table["nan"]
-        if (Get-Tag -Name $nan_tag -ErrorAction SilentlyContinue) {
-            New-Tag -name $nan_tag -Category $ESXiReleaseCategoryName -Description "No matching release found for the build number"
-        }
+    }
+    # Create a NaN tag
+    $mapping_table.Add("nan", "no_matching_release")
+    $nan_tag = $mapping_table["nan"]
+    if (-not (Get-Tag -Name $nan_tag -ErrorAction SilentlyContinue)) {
+        New-Tag -name $nan_tag -Category $ESXiReleaseCategoryName -Description "No matching release found for the build number"
     }
     return $mapping_table
 }
@@ -131,6 +131,11 @@ Function Set-ESXi-tag-by-release {
         Remove-Module -Name Hyper-V -confirm:$false
     }
 
+    # Some nicer output to determine where we are
+    Write-Host ""
+    Write-Host "Phase 1: Preparing pre-requisists" -ForegroundColor Magenta
+    Write-Host ""
+
     # Converting JSON file to Powershell object
     Write-Host "Reading release info from $ESXibuildsJSONFile"
     $ESXiReleaseTable = Get-ESXi-builds-from-file -ESXibuildsJSON $ESXibuildsJSONFile
@@ -138,7 +143,7 @@ Function Set-ESXi-tag-by-release {
     # Getting tag categories ready to contain tags 
     Write-Host "Creating required tag category with name $ESXiReleaseCategoryName"
     if (Get-TagCategory -name $ESXiReleaseCategoryName -ErrorAction SilentlyContinue) {
-        Write-Host "Noting to do. The category $ESXiReleaseCategoryName already exists"
+        Write-Host "Noting to do. The category $ESXiReleaseCategoryName already exists" -ForegroundColor Gray
     }
     else {
         New-TagCategory -name $ESXiReleaseCategoryName -Cardinality "Single" -description "The category holds the ESXi release name tags" -EntityType "VMHost"
@@ -154,14 +159,21 @@ Function Set-ESXi-tag-by-release {
    
     # Holds a smaller mapping hash table between ESXi builds and actual tag names
     Write-Host "Trying to create the required tags for each of the identified builds"
-    $hashtable_builds_tags = New-ESXi-tag-by-release -ESXiBuildList $unique_builds -ESXiReleaseCategoryName $ESXiReleaseCategoryName -ESXiReleaseTable $ESXiReleaseTable
-   
+    [hashtable]$hashtable_builds_tags = New-ESXi-tag-by-release -ESXiBuildList $unique_builds -ESXiReleaseCategoryName $ESXiReleaseCategoryName -ESXiReleaseTable $ESXiReleaseTable
+
+    # Some nicer output to determine where we are
+    Write-Host ""
+    Write-Host "Phase 2: Apply information to ESXi hosts" -ForegroundColor Magenta
+    Write-Host ""
+    
+
     foreach ($vmhost in $vmhost_list) {
         
         # Check if a tag is already assigned to a host and just remove it
         if (Get-TagAssignment -Category $ESXiReleaseCategoryName -Entity $vmhost -ErrorAction SilentlyContinue) {
             $current_host_tag = Get-TagAssignment -Category $ESXiReleaseCategoryName -Entity $vmhost
-            Remove-TagAssignment -TagAssignment $current_host_tag -WhatIf:$true
+            Write-Host "Remove old tag from host $vmhost" -ForegroundColor Yellow
+            Remove-TagAssignment -TagAssignment $current_host_tag -Confirm:$false
         }
 
         # Test if we have that the tag in the hash table, otherwise we cannot tag the host!
@@ -173,12 +185,13 @@ Function Set-ESXi-tag-by-release {
             $release_tag = get-tag -name $tag_label
 
             # Assigning a matching tag
-            Write-Host "Assign tag $release_tag to host"
+            Write-Host "Assign tag $release_tag to host $vmhost" -ForegroundColor Green
             New-TagAssignment -Tag $release_tag -Entity $vmhost 
         }
         else {
             # Adding NaN Tag to a host if we cannot look it up
             $nan_tag = get-tag -Name $hashtable_builds_tags["nan"]
+            Write-Host "Build $current_build of host $vmhost cannot be identified " -ForegroundColor Yellow
             New-TagAssignment -tag $nan_tag -Entity $vmhost
         }
     }
