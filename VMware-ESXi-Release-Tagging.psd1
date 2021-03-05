@@ -18,7 +18,7 @@ ModuleVersion = '0.0.1'
 # CompatiblePSEditions = @()
 
 # ID used to uniquely identify this module
-GUID = '6201aab3-460e-416f-a120-df16497cad29'
+GUID = '155a957b-6cb3-4791-80c7-d4e074181e4f'
 
 # Author of this module
 Author = 'Dominik Zorgnotti'
@@ -33,7 +33,7 @@ Copyright = '(c) Dominik Zorgnotti. All rights reserved.'
 Description = 'Tag ESXi with canonical release names'
 
 # Minimum version of the PowerShell engine required by this module
-PowerShellVersion = '6.0'
+PowerShellVersion = '7.0'
 
 # Name of the PowerShell host required by this module
 # PowerShellHostName = ''
