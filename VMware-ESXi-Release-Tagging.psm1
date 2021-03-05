@@ -77,8 +77,10 @@ Function New-ESXi-tag-by-release {
             write-host "Cannot create a tag for the provided build number."
         }
         # Create a NaN tag
-        if (Get-Tag -Name "no_matching_release" -ErrorAction SilentlyContinue) {
-            New-Tag -name "no_matching_release" -Category $ESXiReleaseCategoryName -Description "No matching release found for the build number"
+        $mapping_table.Add("nan", "no_matching_release")
+        $nan_tag = $mapping_table["nan"]
+        if (Get-Tag -Name $nan_tag -ErrorAction SilentlyContinue) {
+            New-Tag -name $nan_tag -Category $ESXiReleaseCategoryName -Description "No matching release found for the build number"
         }
     }
     return $mapping_table
@@ -166,7 +168,7 @@ Function Set-ESXi-tag-by-release {
         $current_build = $vmhost.build
         if ($hashtable_builds_tags.ContainsKey($current_build)) {
             # Lookup the build in the hasbtable
-            $tag_label = $hashtable_builds_tags.get_item($vmhost.build)
+            $tag_label = $hashtable_builds_tags[($vmhost.build)]
             # Get the tag we need for the current host
             $release_tag = get-tag -name $tag_label
 
@@ -176,7 +178,7 @@ Function Set-ESXi-tag-by-release {
         }
         else {
             # Adding NaN Tag to a host if we cannot look it up
-            $nan_tag = get-tag -Name "no_matching_release"
+            $nan_tag = get-tag -Name $hashtable_builds_tags["nan"]
             New-TagAssignment -tag $nan_tag -Entity $vmhost
         }
     }
