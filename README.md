@@ -1,15 +1,8 @@
 # VMware ESXi Release Tagging
 
-I have created a PowerShell module that will take a JSON file as an input and tag ESXi servers with a human-readable release name.
-This project continuous the work I have done on my projects to provide automation friendly VMware product release data:
-
--
--
+This PowerShell module will take a JSON file as an input and tag ESXi servers in a vCenter with a human-readable release name.
 
 ## Usage
-
-
-
 
 1. Clone the repository  
 ```powershell
@@ -43,10 +36,13 @@ Use curl, wget, browser, ... to get https://github.com/dominikzorgnotti/vmware_p
 ## Testing
 I have tested the module against:
 
-- Windows 10
+- Client operating system:
+  - Microsoft Windows: 10.0.17763
 - vSphere 7
-  - vCenter: vCenter Server Update 1d
-  - ESXi hosts: ESX 7.0 Update 1c and Update 1d
+  - vCenter Server:
+    -  7.0: Update 1d
+  - ESXi hosts:
+    - 7.0: Update 1c, Update 1d
 - PowerShell: 
   - Core: v7.1.2
 - PowerCli modules: 12.2
