@@ -1,13 +1,13 @@
 # VMware ESXi Release Tagging
 
-This PowerShell module will take a JSON file as an input and tag ESXi servers in a vCenter with a human-readable release name.
-I have also a [blog post](https://www.why-did-it.fail/blog/2021-02-set-esxi-release-names-with-tags/) with a pair of screenshots.
+This PowerShell module will take a JSON file as an input and tag ESXi servers in a vCenter with a human-readable release name, e.g. ESXi_7.0_Update_1c.
+There is also a [blog post](https://www.why-did-it.fail/blog/2021-02-set-esxi-release-names-with-tags/) with a some of screenshots.
 
 ## Usage
 
 0. Open Powershell
 
-2. Clone the repository  
+1. Clone the repository  
 ```powershell
 # git clone https://github.com/dominikzorgnotti/VMware-ESXi-Release-Tagging.git
 ```
