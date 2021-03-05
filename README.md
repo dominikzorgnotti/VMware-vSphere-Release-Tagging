@@ -1,6 +1,7 @@
 # VMware ESXi Release Tagging
 
 This PowerShell module will take a JSON file as an input and tag ESXi servers in a vCenter with a human-readable release name.
+I have also a [blog post](https://www.why-did-it.fail/blog/2021-02-set-esxi-release-names-with-tags/) with a pair of screenshots.
 
 ## Usage
 
@@ -14,7 +15,7 @@ This PowerShell module will take a JSON file as an input and tag ESXi servers in
 ```powershell
 # cd VMware-ESXi-Release-Tagging
 ```
-3. Get the JSON file with the ESXi release builds:
+3. Get the JSON file with the ESXi release builds. Once I address https://github.com/dominikzorgnotti/VMware-ESXi-Release-Tagging/issues/1 this can be skipped.
 ```text
 Use curl, wget, browser, ... to get https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 ```
