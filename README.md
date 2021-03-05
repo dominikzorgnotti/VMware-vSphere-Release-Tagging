@@ -4,7 +4,9 @@ This PowerShell module will take a JSON file as an input and tag ESXi servers in
 
 ## Usage
 
-1. Clone the repository  
+0. Open Powershell
+
+2. Clone the repository  
 ```powershell
 # git clone https://github.com/dominikzorgnotti/VMware-ESXi-Release-Tagging.git
 ```
@@ -15,6 +17,10 @@ This PowerShell module will take a JSON file as an input and tag ESXi servers in
 3. Get the JSON file with the ESXi release builds:
 ```text
 Use curl, wget, browser, ... to get https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
+```
+Example with PowerShell to put the file into your current working directory
+```powershell
+# Invoke-WebRequest -uri https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json -OutFile .\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 ```
 4. Import the module from the current working directory
 ```powershell
