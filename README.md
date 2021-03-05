@@ -20,7 +20,7 @@ Use curl, wget, browser, ... to get https://github.com/dominikzorgnotti/vmware_p
 ```powershell
 # Import-Module VMware-ESXi-Release-Tagging.psd1
 ```
-5. Make sure you are connected to a vCenter
+5. Make sure you are connected to a vCenter. Permissions must be sufficient to add tags and a tag category on GLOBAl and set tags to all ESXi hosts.
 ```powershell
 # connect-viserver $vcenter
 ```
