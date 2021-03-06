@@ -39,8 +39,9 @@ Load-BuildInformationfromJSON -ReleaseJSONLocation "https://raw.githubuserconten
     # else: it must be a url
     else {
         try {
+            # Not pretty, but I added SkipCertificateCheck to handle 99% of all custom URL handling issues
             Write-Host "Trying web location at $ReleaseJSONLocation..."
-            $Filecontent = (Invoke-WebRequest -Uri $ReleaseJSONLocation).content | ConvertFrom-Json
+            $Filecontent = (Invoke-WebRequest -SkipCertificateCheck -Uri $ReleaseJSONLocation).content | ConvertFrom-Json
         }
         catch {
             $StatusCode = $_.Exception.Response.StatusCode.value__
