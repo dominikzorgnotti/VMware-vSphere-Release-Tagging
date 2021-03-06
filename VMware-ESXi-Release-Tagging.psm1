@@ -59,9 +59,8 @@ Function Set-ESXiTagbyRelease {
 .DESCRIPTION
   Assigns a tag containing the vSphere release name to all ESXi hosts.
   # BIG TODO: Provide entity or something to make this more targeted
-  A JSON file providing the required build information must be provided, you can fine such a file here: https://github.com/dominikzorgnotti/vmware_product_releases_machine-readable/blob/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 .PARAMETER ESXibuildsJSON
-  A json file containing ESXi build information, it is expected that the JSON key is equal to the build number.
+  [optional] A path (URL or local) to a json file containing ESXi build information, it is expected that the JSON key is equal to the build number.
   You can fine such a file here: https://github.com/dominikzorgnotti/vmware_product_releases_machine-readable/blob/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 .PARAMETER ESXiReleaseCategoryName
   [optional] The name of the vCenter tag category, defaults to tc_esxi_release_names
@@ -73,11 +72,15 @@ Function Set-ESXiTagbyRelease {
     __contact__ = "dominik@why-did-it.fail"
     __license__ = "GPLv3"
     __status__ = "beta"
-    __version__ = "0.0.3"
+    __version__ = "0.1.0"
 .EXAMPLE
-  tag-esxi-with-release-name -ESXibuildsJSON kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
+  tag-esxi-with-release-name
 .EXAMPLE
-  tag-esxi-with-release-name -ESXibuildsJSON kb2143832_vmware_vsphere_esxi_table0_release_as-index.json -ESXiReleaseCategoryName "Release_Info"
+  tag-esxi-with-release-name Set-ESXiTagbyRelease -ESXibuildsJSONFile "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+.EXAMPLE
+  Set-ESXiTagbyRelease -ESXibuildsJSONFile "https://192.168.10.2/path/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json" -ESXiReleaseCategoryName "Release_Info"
+.EXAMPLE
+  tag-esxi-with-release-name -ESXiReleaseCategoryName "Release_Info"
 #>
 
     # TODO: How to target Entity (Folder, Datacenter, Cluster, Single VMhost) for a subset of hosts?
@@ -85,6 +88,9 @@ Function Set-ESXiTagbyRelease {
         [Parameter(Mandatory = $false)][string]$ESXiReleaseCategoryName = "tc_esxi_release_names",
         [Parameter(Mandatory = $false)][string]$ESXibuildsJSONFile
     )
+
+    # default assignments
+    $DEFAULT_ESXI_RELEASE_JSON = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
 
     # Check if we are connected to a vCenter
     if ($global:DefaultVIServers.count -eq 0) {
@@ -105,7 +111,7 @@ Function Set-ESXiTagbyRelease {
     Write-Host "Reading ESXi release info..."
     # Check if were given an explicit parameter(https://stackoverflow.com/questions/48643250/how-to-check-if-a-powershell-optional-argument-was-set-by-caller), if not try to download from default location
     if (-not ($PSBoundParameters.ContainsKey('ESXibuildsJSONFile'))) {
-        $ESXibuildsJSONFile = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+        $ESXibuildsJSONFile = $DEFAULT_ESXI_RELEASE_JSON
     }
     $ESXiReleaseTable = Load-BuildInformationfromJSON -ReleaseJSONLocation $ESXibuildsJSONFile
 
