@@ -91,7 +91,7 @@ Function Set-ESXiTagbyRelease {
         
         if ($ESXiBuild -in $ESXiReleaseTable.PSobject.Properties.Name) {
             # Identify the release name based on the build provided as input
-            $requested_release_name = $ESXiReleaseTable.($ESXiBuild)."Release Name".Replace(" ", "_")
+            $requested_release_name = $ESXiReleaseTable.($ESXiBuild)."Version".Replace(" ", "_")
                           
             # Avoid escaping issues by replacing spaces with underscores
             $requested_release_name_fmt = $requested_release_name.Replace(" ", "_")
@@ -114,7 +114,7 @@ Function Set-ESXiTagbyRelease {
             }
             else {
                 write-host "Creating tag $requested_release_name_fmt"
-                New-Tag -name $requested_release_name_fmt -Category $ESXiReleaseCategoryName -Description ($ESXiReleaseTable.($ESXiBuild)."Release Name" + " - build: " + $ESXiBuild)
+                New-Tag -name $requested_release_name_fmt -Category $ESXiReleaseCategoryName -Description ($ESXiReleaseTable.($ESXiBuild)."Version" + " - build: " + $ESXiBuild)
             }
             
 
