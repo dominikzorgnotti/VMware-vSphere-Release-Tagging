@@ -15,16 +15,16 @@ There is also a [blog post](https://www.why-did-it.fail/blog/2021-02-set-esxi-re
 ```powershell
 # cd VMware-ESXi-Release-Tagging
 ```
-4. Import the module from the current working directory
+3. Import the module from the current working directory
 ```powershell
 # Import-Module .\VMware-ESXi-Release-Tagging.psd1
 ```
-5. Make sure you are connected to a vCenter.  
+4. Make sure you are connected to a vCenter.  
 Permissions must be sufficient to add tags and a tag category at global level and set tags to all ESXi hosts.
 ```powershell
 # connect-viserver $vcenter
 ```
-6. Execute the script 
+5. Execute the script 
 ```powershell
 # Set-ESXiTagbyRelease
 ```
@@ -33,11 +33,11 @@ Permissions must be sufficient to add tags and a tag category at global level an
 As of v0.1.0 the module will try to download the release information automatically from GitHub. If you're using a proxy PowerShell v6 and newer should be able to access your system settings for that.  
 If you do not have Internet access, you can specify a custom URL or file path containing the required release information to the module. The required file with release information for ESXi can be found [here](https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json).
 
-Step 6 with custom local file location:
+Step 5 with custom local file location:
 ```powershell
 # Set-ESXiTagbyRelease -ESXibuildsJSONFile "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
 ```
-Step 6 with custom URL:
+Step 5 with custom URL:
 ```powershell
 # Set-ESXiTagbyRelease -ESXibuildsJSONFile "https://192.168.10.2/path/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
 ```
