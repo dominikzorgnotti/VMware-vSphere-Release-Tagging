@@ -4,9 +4,9 @@
 Function Load-BuildInformationfromJSON {
     <#
 .SYNOPSIS
-  Opens a file, eihter a local or as URL, and returns the output converted to JSON
+  Opens a file, either a local or as URL, and returns the output converted to JSON
 .DESCRIPTION
-  Opens a file, eihter a local or as URL, and returns the output converted to JSON
+  Opens a file, either a local or as URL, and returns the output converted to JSON
 .PARAMETER ReleaseJSONLocation
 A json file containing vSphere (VC, ESXi) build information, it is expected that the JSON key is equal to the build number.
 .NOTES
