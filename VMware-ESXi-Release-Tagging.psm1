@@ -30,7 +30,7 @@ Function Set-ESXiTagbyRelease {
     # TODO: How to target Entity (Folder, Datacenter, Cluster, Single VMhost) for a subset of hosts?
     param(
         [Parameter(Mandatory = $false)][string]$ESXiReleaseCategoryName = "tc_esxi_release_names",
-        [Parameter(Mandatory = $true)][string]$ESXibuildsJSONFile
+        [Parameter(Mandatory = $false)][string]$ESXibuildsJSONFile = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
     )
 
     # Check if we are connected to a vCenter
@@ -48,15 +48,27 @@ Function Set-ESXiTagbyRelease {
     Write-Host "Phase 1: Preparing pre-requisists" -ForegroundColor Magenta
     Write-Host ""
 
-    # Converting JSON file to Powershell object
+    # Converting JSON to Powershell object
     Write-Host "Reading release info from $ESXibuildsJSONFile"
+    # Check if were given an explicit parameter(https://stackoverflow.com/questions/48643250/how-to-check-if-a-powershell-optional-argument-was-set-by-caller), if not try to download from default location
+    if ($PSBoundParameters.ContainsKey('ESXibuildsJSONFile')) {
+        try {
+        $ESXiReleaseTable = (Invoke-WebRequest -Uri $ESXibuildsJSONFile).content | ConvertFrom-Json
+    } catch
+    {
+        $StatusCode = $_.Exception.Response.StatusCode.value__
+        Write-Error "Cannot download required JSON data from GitHub. Status is $StatusCode" -ErrorAction Stop
+    }
+    } else {
+
     Try {
         $ESXiReleaseTable = Get-Content -Raw -Path $ESXibuildsJSONFile | ConvertFrom-Json
     }
     catch [System.IO.FileNotFoundException] {
         Write-Error -Message "Could not find $ESXibuildsJSON" -ErrorAction Stop
     }
-  
+    }
+    
     # Until I can fix it, all hosts that will are not disconnected will be targeted
     Write-Host "Building list of all ESXi hosts..."
     $vmhost_list = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
