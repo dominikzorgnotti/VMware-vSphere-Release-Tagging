@@ -51,7 +51,7 @@ Function Set-ESXiTagbyRelease {
     # Converting JSON to Powershell object
     Write-Host "Reading release info from $ESXibuildsJSONFile"
     # Check if were given an explicit parameter(https://stackoverflow.com/questions/48643250/how-to-check-if-a-powershell-optional-argument-was-set-by-caller), if not try to download from default location
-    if ($PSBoundParameters.ContainsKey('ESXibuildsJSONFile')) {
+    if (-not ($PSBoundParameters.ContainsKey('ESXibuildsJSONFile'))) {
         try {
         $ESXiReleaseTable = (Invoke-WebRequest -Uri $ESXibuildsJSONFile).content | ConvertFrom-Json
     } catch
@@ -59,16 +59,30 @@ Function Set-ESXiTagbyRelease {
         $StatusCode = $_.Exception.Response.StatusCode.value__
         Write-Error "Cannot download required JSON data from GitHub. Status is $StatusCode" -ErrorAction Stop
     }
-    } else {
+    } 
+    # A custom location was given by the user
+    else {
+        # Test if this is a file!
+        if  (Get-Item $ESXibuildsJSONFile) -is [System.IO.fileinfo] {
+            try {
+            $ESXiReleaseTable = Get-Content -Raw -Path $ESXibuildsJSONFile | ConvertFrom-Json 
+            }
+            catch {
+                Write-Error "Cannot fetch required JSON data from local path. -ErrorAction Stop
+            }
+        }
+        # If not, it must be url
+        else {
+            try {
+                $ESXiReleaseTable = (Invoke-WebRequest -Uri $ESXibuildsJSONFile).content | ConvertFrom-Json
+            } catch
+            {
+                $StatusCode = $_.Exception.Response.StatusCode.value__
+                Write-Error "Cannot download required JSON data from custom location. Status is $StatusCode" -ErrorAction Stop
+        }
 
-    Try {
-        $ESXiReleaseTable = Get-Content -Raw -Path $ESXibuildsJSONFile | ConvertFrom-Json
     }
-    catch [System.IO.FileNotFoundException] {
-        Write-Error -Message "Could not find $ESXibuildsJSON" -ErrorAction Stop
-    }
-    }
-    
+
     # Until I can fix it, all hosts that will are not disconnected will be targeted
     Write-Host "Building list of all ESXi hosts..."
     $vmhost_list = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
