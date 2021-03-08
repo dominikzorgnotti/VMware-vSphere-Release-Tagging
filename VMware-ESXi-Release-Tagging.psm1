@@ -64,6 +64,8 @@ Function Set-ESXiTagbyRelease {
   You can fine such a file here: https://github.com/dominikzorgnotti/vmware_product_releases_machine-readable/blob/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 .PARAMETER ESXiReleaseCategoryName
   [optional] The name of the vCenter tag category, defaults to tc_esxi_release_names
+.PARAMETER Entity
+  [optional] A VI object of the types (VMhost | Cluster | Datacenter | Folder) that sets the scope of the tagging. Default will be all VMhosts in a vCenter.
 .NOTES
     __author__ = "Dominik Zorgnotti"
     __contact__ = "dominik@why-did-it.fail"
@@ -72,7 +74,7 @@ Function Set-ESXiTagbyRelease {
     __contact__ = "dominik@why-did-it.fail"
     __license__ = "GPLv3"
     __status__ = "beta"
-    __version__ = "0.1.0"
+    __version__ = "0.2.0"
 .EXAMPLE
   tag-esxi-with-release-name
 .EXAMPLE
@@ -87,11 +89,15 @@ Function Set-ESXiTagbyRelease {
     param(
         [Parameter(Mandatory = $false)][string]$ESXiReleaseCategoryName = "tc_esxi_release_names",
         [Parameter(Mandatory = $false)][string]$ESXibuildsJSONFile
+        [Parameter(Mandatory = $false)][string]$Entity
     )
 
     # default assignments
+    # The default download URL for the JSON data with ESXi release information
     $DEFAULT_ESXI_RELEASE_JSON = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
-
+    # The valid entity types that can be given to get-vmhost as an argument for the -Location parameter
+    $VALID_ENTITY_TYPES = @("VMHost", "Datacenter", "Cluster", "Folder")
+    
     # Check if we are connected to a vCenter
     if ($global:DefaultVIServers.count -eq 0) {
         Write-Error -Message "Please make sure you are connected to a vCenter." -ErrorAction Stop
@@ -117,8 +123,14 @@ Function Set-ESXiTagbyRelease {
 
     
     # Until I can fix it, all hosts that will are not disconnected will be targeted
+    if (-not ($PSBoundParameters.ContainsKey('Entity'))) {
     Write-Host "Building list of all ESXi hosts..."
     $vmhost_list = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
+    } else {
+    Write-Host "Building list of ESXi hosts in this scope..."
+    # filter for valid entity types and pass on argument
+    #$vmhost_list = get-vmhost -Location | Where-Object { $_.ConnectionState -ne 'disconnected' }
+    }
     
     # Create a unique set of builds
     Write-Host "Building list of unique ESXi builds from the previous output"
