@@ -1,4 +1,57 @@
-#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag ESXi with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-ESXiTagbyRelease") -PowerShellVersion '7.0' -ModuleVersion "0.0.2"
+#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag vSphere infrastructure with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-ESXiTagbyRelease", "Load-BuildInformationfromJSON") -PowerShellVersion '7.0' -ModuleVersion "0.1.0"
+
+
+Function Load-BuildInformationfromJSON {
+    <#
+.SYNOPSIS
+  Opens a file, either a local or as URL, and returns the output converted to JSON
+.DESCRIPTION
+  Opens a file, either a local or as URL, and returns the output converted to JSON
+.PARAMETER ReleaseJSONLocation
+A json file containing vSphere (VC, ESXi) build information, it is expected that the JSON key is equal to the build number.
+.NOTES
+  __author__ = "Dominik Zorgnotti"
+  __contact__ = "dominik@why-did-it.fail"
+  __created__ = "2021-03-06"
+  __deprecated__ = False
+  __contact__ = "dominik@why-did-it.fail"
+  __license__ = "GPLv3"
+  __status__ = "beta"
+  __version__ = "0.0.1"
+.EXAMPLE
+Load-BuildInformationfromJSON -ReleaseJSONLocation "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+.EXAMPLE
+Load-BuildInformationfromJSON -ReleaseJSONLocation "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+#>
+    param(
+        [Parameter(Mandatory = $true)][string]$ReleaseJSONLocation
+    )
+    # Test if it is a local file
+    if ((Get-Item $ReleaseJSONLocation -ErrorAction SilentlyContinue) -is [System.IO.fileinfo]) {
+        try {
+            Write-Host "Trying to access local file $ReleaseJSONLocation"
+            $Filecontent = Get-Content -Raw -Path $ReleaseJSONLocation | ConvertFrom-Json 
+        }
+        catch {
+            Write-Error "Cannot fetch required JSON data from local path." -ErrorAction Stop
+        }
+    }
+    # else: it must be a url
+    else {
+        try {
+            # Not pretty, but I added SkipCertificateCheck to handle 99% of all custom URL handling issues
+            Write-Host "Trying web location at $ReleaseJSONLocation..."
+            $Filecontent = (Invoke-WebRequest -SkipCertificateCheck -Uri $ReleaseJSONLocation).content | ConvertFrom-Json
+        }
+        catch {
+            $StatusCode = $_.Exception.Response.StatusCode.value__
+            Write-Error "Cannot download required JSON data from your location. Status is $StatusCode" -ErrorAction Stop
+        }
+    }
+    return $Filecontent
+}
+
+
 Function Set-ESXiTagbyRelease {
     <#
 .SYNOPSIS
@@ -6,9 +59,8 @@ Function Set-ESXiTagbyRelease {
 .DESCRIPTION
   Assigns a tag containing the vSphere release name to all ESXi hosts.
   # BIG TODO: Provide entity or something to make this more targeted
-  A JSON file providing the required build information must be provided, you can fine such a file here: https://github.com/dominikzorgnotti/vmware_product_releases_machine-readable/blob/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 .PARAMETER ESXibuildsJSON
-  A json file containing ESXi build information, it is expected that the JSON key is equal to the build number.
+  [optional] A path (URL or local) to a json file containing ESXi build information, it is expected that the JSON key is equal to the build number.
   You can fine such a file here: https://github.com/dominikzorgnotti/vmware_product_releases_machine-readable/blob/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 .PARAMETER ESXiReleaseCategoryName
   [optional] The name of the vCenter tag category, defaults to tc_esxi_release_names
@@ -20,18 +72,25 @@ Function Set-ESXiTagbyRelease {
     __contact__ = "dominik@why-did-it.fail"
     __license__ = "GPLv3"
     __status__ = "beta"
-    __version__ = "0.0.3"
+    __version__ = "0.1.0"
 .EXAMPLE
-  tag-esxi-with-release-name -ESXibuildsJSON kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
+  tag-esxi-with-release-name
 .EXAMPLE
-  tag-esxi-with-release-name -ESXibuildsJSON kb2143832_vmware_vsphere_esxi_table0_release_as-index.json -ESXiReleaseCategoryName "Release_Info"
+  tag-esxi-with-release-name Set-ESXiTagbyRelease -ESXibuildsJSONFile "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+.EXAMPLE
+  Set-ESXiTagbyRelease -ESXibuildsJSONFile "https://192.168.10.2/path/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json" -ESXiReleaseCategoryName "Release_Info"
+.EXAMPLE
+  tag-esxi-with-release-name -ESXiReleaseCategoryName "Release_Info"
 #>
 
     # TODO: How to target Entity (Folder, Datacenter, Cluster, Single VMhost) for a subset of hosts?
     param(
         [Parameter(Mandatory = $false)][string]$ESXiReleaseCategoryName = "tc_esxi_release_names",
-        [Parameter(Mandatory = $true)][string]$ESXibuildsJSONFile
+        [Parameter(Mandatory = $false)][string]$ESXibuildsJSONFile
     )
+
+    # default assignments
+    $DEFAULT_ESXI_RELEASE_JSON = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
 
     # Check if we are connected to a vCenter
     if ($global:DefaultVIServers.count -eq 0) {
@@ -48,15 +107,15 @@ Function Set-ESXiTagbyRelease {
     Write-Host "Phase 1: Preparing pre-requisists" -ForegroundColor Magenta
     Write-Host ""
 
-    # Converting JSON file to Powershell object
-    Write-Host "Reading release info from $ESXibuildsJSONFile"
-    Try {
-        $ESXiReleaseTable = Get-Content -Raw -Path $ESXibuildsJSONFile | ConvertFrom-Json
+    # Converting JSON to Powershell object
+    Write-Host "Reading ESXi release info..."
+    # Check if were given an explicit parameter(https://stackoverflow.com/questions/48643250/how-to-check-if-a-powershell-optional-argument-was-set-by-caller), if not try to download from default location
+    if (-not ($PSBoundParameters.ContainsKey('ESXibuildsJSONFile'))) {
+        $ESXibuildsJSONFile = $DEFAULT_ESXI_RELEASE_JSON
     }
-    catch [System.IO.FileNotFoundException] {
-        Write-Error -Message "Could not find $ESXibuildsJSON" -ErrorAction Stop
-    }
-  
+    $ESXiReleaseTable = Load-BuildInformationfromJSON -ReleaseJSONLocation $ESXibuildsJSONFile
+
+    
     # Until I can fix it, all hosts that will are not disconnected will be targeted
     Write-Host "Building list of all ESXi hosts..."
     $vmhost_list = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
@@ -107,7 +166,7 @@ Function Set-ESXiTagbyRelease {
         }
         
         # If the build is found in our table, create a tag
-            if ($requested_release_name_fmt) {
+        if ($requested_release_name_fmt) {
 
             if (Get-Tag -name $requested_release_name_fmt -ErrorAction SilentlyContinue) {
                 Write-host "Nothing to do. Tag $requested_release_name_fmt already exists"
@@ -120,7 +179,7 @@ Function Set-ESXiTagbyRelease {
 
 
         }
-        }
+    }
     
     # Some nicer output to determine where we are
     Write-Host ""
