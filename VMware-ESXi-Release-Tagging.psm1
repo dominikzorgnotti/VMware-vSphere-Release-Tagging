@@ -1,4 +1,4 @@
-#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag vSphere infrastructure with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-ESXiTagbyRelease", "Load-BuildInformationfromJSON") -PowerShellVersion '7.0' -ModuleVersion "0.1.0"
+#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag vSphere infrastructure with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-ESXiTagbyRelease", "Load-BuildInformationfromJSON") -PowerShellVersion '7.0' -ModuleVersion "0.2.0"
 
 
 Function Load-BuildInformationfromJSON {
@@ -64,6 +64,8 @@ Function Set-ESXiTagbyRelease {
   You can fine such a file here: https://github.com/dominikzorgnotti/vmware_product_releases_machine-readable/blob/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json
 .PARAMETER ESXiReleaseCategoryName
   [optional] The name of the vCenter tag category, defaults to tc_esxi_release_names
+.PARAMETER Entity
+  [optional] A VI object of the types (VMhost | Cluster | Datacenter | Folder) that sets the scope of the tagging. Default will be all VMhosts in a vCenter.
 .NOTES
     __author__ = "Dominik Zorgnotti"
     __contact__ = "dominik@why-did-it.fail"
@@ -71,27 +73,42 @@ Function Set-ESXiTagbyRelease {
     __deprecated__ = False
     __contact__ = "dominik@why-did-it.fail"
     __license__ = "GPLv3"
-    __status__ = "beta"
-    __version__ = "0.1.0"
+    __status__ = "released"
+    __version__ = "0.2.0"
 .EXAMPLE
   tag-esxi-with-release-name
+.EXAMPLE
+  tag-esxi-with-release-name -Entity (get-cluster "production")
 .EXAMPLE
   tag-esxi-with-release-name Set-ESXiTagbyRelease -ESXibuildsJSONFile "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
 .EXAMPLE
   Set-ESXiTagbyRelease -ESXibuildsJSONFile "https://192.168.10.2/path/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json" -ESXiReleaseCategoryName "Release_Info"
 .EXAMPLE
   tag-esxi-with-release-name -ESXiReleaseCategoryName "Release_Info"
+.EXAMPLE
+  tag-esxi-with-release-name -Entity (get-vmhost "esx1.corp.local")
 #>
 
-    # TODO: How to target Entity (Folder, Datacenter, Cluster, Single VMhost) for a subset of hosts?
+    # Do not over-engineer: Entity will just do a basic sanity check if a valid VIobject is returned.
+    # Input by pipeline is a bit tricky, skipping for now.
     param(
-        [Parameter(Mandatory = $false)][string]$ESXiReleaseCategoryName = "tc_esxi_release_names",
-        [Parameter(Mandatory = $false)][string]$ESXibuildsJSONFile
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
+        [string]$ESXiReleaseCategoryName = "tc_esxi_release_names"
+        ,
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
+        [string]$ESXibuildsJSONFile
+        ,
+        [ValidateScript( { ( Get-inventory ($_)) })]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
+        $Entity
     )
 
     # default assignments
+    # The default download URL for the JSON data with ESXi release information
     $DEFAULT_ESXI_RELEASE_JSON = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
-
+    # Future addon-on? The valid entity types that can be given to get-vmhost as an argument for the -Location parameter
+    # $VALID_ENTITY_TYPES = @("VMHost", "Datacenter", "Cluster", "Folder")
+    
     # Check if we are connected to a vCenter
     if ($global:DefaultVIServers.count -eq 0) {
         Write-Error -Message "Please make sure you are connected to a vCenter." -ErrorAction Stop
@@ -116,10 +133,27 @@ Function Set-ESXiTagbyRelease {
     $ESXiReleaseTable = Load-BuildInformationfromJSON -ReleaseJSONLocation $ESXibuildsJSONFile
 
     
-    # Until I can fix it, all hosts that will are not disconnected will be targeted
-    Write-Host "Building list of all ESXi hosts..."
-    $vmhost_list = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
+    # By default, all hosts that are not disconnected will be targeted
+    if (-not ($PSBoundParameters.ContainsKey('Entity'))) {
+        Write-Host "Building list of all ESXi hosts..."
+        $vmhost_list = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
+    }
+    else {
+        Write-Host "Building list of ESXi hosts in this scope..."
+        # Test if a VMhost object was already passed on
+        if ($Entity[0] -is [VMware.VimAutomation.ViCore.Types.V1.Inventory.VMHost]) {
+            $vmhost_list = $Entity | Where-Object { $_.ConnectionState -ne 'disconnected' }
+        }
+        else {
+            $vmhost_list = get-vmhost -Location $Entity | Where-Object { $_.ConnectionState -ne 'disconnected' }
+        }
+    }
     
+    # When the list is empty nothing can be done    
+    if ($vmhost_list.count -le 0) {
+        Write-Error -Message "The list of hosts is empty" -ErrorAction Stop
+    }
+
     # Create a unique set of builds
     Write-Host "Building list of unique ESXi builds from the previous output"
     $unique_builds = $vmhost_list.build | Get-Unique
@@ -173,7 +207,7 @@ Function Set-ESXiTagbyRelease {
             }
             else {
                 write-host "Creating tag $requested_release_name_fmt"
-                New-Tag -name $requested_release_name_fmt -Category $ESXiReleaseCategoryName -Description ($ESXiReleaseTable.($ESXiBuild)."Version" + " - build: " + $ESXiBuild)
+                New-Tag -name $requested_release_name_fmt -Category $ESXiReleaseCategoryName -Description ($ESXiReleaseTable.($ESXiBuild)."Version" + " (" + $ESXiReleaseTable.($ESXiBuild)."Release Name" + ") " + "- build: " + $ESXiBuild)
             }
             
 
@@ -218,3 +252,5 @@ Function Set-ESXiTagbyRelease {
     
 
 }
+
+
