@@ -85,18 +85,21 @@ Function Set-ESXiTagbyRelease {
   Set-ESXiTagbyRelease -ESXibuildsJSONFile "https://192.168.10.2/path/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json" -ESXiReleaseCategoryName "Release_Info"
 .EXAMPLE
   tag-esxi-with-release-name -ESXiReleaseCategoryName "Release_Info"
+.EXAMPLE
+  tag-esxi-with-release-name -Entity (get-vmhost "esx1.corp.local")
 #>
 
-    # Do not over-engineer: Entity will just do a basic sanity check if a valid VIobject is returned
+    # Do not over-engineer: Entity will just do a basic sanity check if a valid VIobject is returned.
+    # Input by pipeline is a bit tricky, skipping for now.
     param(
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         [string]$ESXiReleaseCategoryName = "tc_esxi_release_names"
         ,
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         [string]$ESXibuildsJSONFile
         ,
-        [ValidateScript({( Get-inventory ($_)) })]
-        [Parameter(Mandatory = $false, ValueFromPipeline=$true)]
+        [ValidateScript( { ( Get-inventory ($_)) })]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         $Entity
     )
 
@@ -132,12 +135,20 @@ Function Set-ESXiTagbyRelease {
     
     # By default, all hosts that are not disconnected will be targeted
     if (-not ($PSBoundParameters.ContainsKey('Entity'))) {
-    Write-Host "Building list of all ESXi hosts..."
-    $vmhost_list = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
-    } else {
-    Write-Host "Building list of ESXi hosts in this scope..."
-    $vmhost_list = get-vmhost -Location $Entity | Where-Object { $_.ConnectionState -ne 'disconnected' }
+        Write-Host "Building list of all ESXi hosts..."
+        $vmhost_list = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
     }
+    else {
+        Write-Host "Building list of ESXi hosts in this scope..."
+        # Test if a VMhost object was already passed on
+        if ($Entity[0] -is [VMware.VimAutomation.ViCore.Types.V1.Inventory.VMHost]) {
+            $vmhost_list = $Entity | Where-Object { $_.ConnectionState -ne 'disconnected' }
+        }
+        else {
+            $vmhost_list = get-vmhost -Location $Entity | Where-Object { $_.ConnectionState -ne 'disconnected' }
+        }
+    }
+    
     # When the list is empty nothing can be done    
     if ($vmhost_list.count -le 0) {
         Write-Error -Message "The list of hosts is empty" -ErrorAction Stop
@@ -196,7 +207,7 @@ Function Set-ESXiTagbyRelease {
             }
             else {
                 write-host "Creating tag $requested_release_name_fmt"
-                New-Tag -name $requested_release_name_fmt -Category $ESXiReleaseCategoryName -Description ($ESXiReleaseTable.($ESXiBuild)."Version" + " - build: " + $ESXiBuild)
+                New-Tag -name $requested_release_name_fmt -Category $ESXiReleaseCategoryName -Description ($ESXiReleaseTable.($ESXiBuild)."Version" + " (" + $ESXiReleaseTable.($ESXiBuild)."Release Name" + ") " + "- build: " + $ESXiBuild)
             }
             
 
