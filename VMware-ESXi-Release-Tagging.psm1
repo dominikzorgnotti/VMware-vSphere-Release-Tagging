@@ -1,4 +1,4 @@
-#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag vSphere infrastructure with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-ESXiTagbyRelease", "Load-BuildInformationfromJSON") -PowerShellVersion '7.0' -ModuleVersion "0.2.0"
+#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag vSphere infrastructure with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-ESXiTagbyRelease", "Load-BuildInformationfromJSON") -PowerShellVersion '7.0' -ModuleVersion "0.2.1"
 
 
 Function Load-BuildInformationfromJSON {
@@ -74,19 +74,19 @@ Function Set-ESXiTagbyRelease {
     __contact__ = "dominik@why-did-it.fail"
     __license__ = "GPLv3"
     __status__ = "released"
-    __version__ = "0.2.0"
+    __version__ = "0.2.1"
 .EXAMPLE
-  tag-esxi-with-release-name
+  Set-ESXiTagbyRelease
 .EXAMPLE
-  tag-esxi-with-release-name -Entity (get-cluster "production")
+  Set-ESXiTagbyRelease -Entity (get-cluster "production")
 .EXAMPLE
-  tag-esxi-with-release-name Set-ESXiTagbyRelease -ESXibuildsJSONFile "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+  Set-ESXiTagbyRelease -ESXibuildsJSONFile "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
 .EXAMPLE
   Set-ESXiTagbyRelease -ESXibuildsJSONFile "https://192.168.10.2/path/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json" -ESXiReleaseCategoryName "Release_Info"
 .EXAMPLE
-  tag-esxi-with-release-name -ESXiReleaseCategoryName "Release_Info"
+  Set-ESXiTagbyRelease -ESXiReleaseCategoryName "Release_Info"
 .EXAMPLE
-  tag-esxi-with-release-name -Entity (get-vmhost "esx1.corp.local")
+  Set-ESXiTagbyRelease -Entity (get-vmhost "esx1.corp.local")
 #>
 
     # Do not over-engineer: Entity will just do a basic sanity check if a valid VIobject is returned.
@@ -121,7 +121,7 @@ Function Set-ESXiTagbyRelease {
 
     # Some nicer output to determine where we are
     Write-Host ""
-    Write-Host "Phase 1: Preparing pre-requisists" -ForegroundColor Magenta
+    Write-Host "Phase 1: Preparing pre-requisites" -ForegroundColor Magenta
     Write-Host ""
 
     # Converting JSON to Powershell object
@@ -170,7 +170,7 @@ Function Set-ESXiTagbyRelease {
     # Create a Null tag
     Write-Host "Creating a Null tag in case the build number cannot be found"
     $null_tag_name = "no_matching_release"
-    if (-not (Get-Tag -Name $null_tag_name -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Tag -Name $null_tag_name -Category $ESXiReleaseCategoryName -ErrorAction SilentlyContinue)) {
         New-Tag -name $null_tag_name -Category $ESXiReleaseCategoryName -Description "No matching release found for the build number"
     }
    
@@ -184,7 +184,7 @@ Function Set-ESXiTagbyRelease {
         
         if ($ESXiBuild -in $ESXiReleaseTable.PSobject.Properties.Name) {
             # Identify the release name based on the build provided as input
-            $requested_release_name = $ESXiReleaseTable.($ESXiBuild)."Version".Replace(" ", "_")
+            $requested_release_name = $ESXiReleaseTable.($ESXiBuild)."Version"
                           
             # Avoid escaping issues by replacing spaces with underscores
             $requested_release_name_fmt = $requested_release_name.Replace(" ", "_")
@@ -202,7 +202,7 @@ Function Set-ESXiTagbyRelease {
         # If the build is found in our table, create a tag
         if ($requested_release_name_fmt) {
 
-            if (Get-Tag -name $requested_release_name_fmt -ErrorAction SilentlyContinue) {
+            if (Get-Tag -name $requested_release_name_fmt -Category $ESXiReleaseCategoryName -ErrorAction SilentlyContinue) {
                 Write-host "Nothing to do. Tag $requested_release_name_fmt already exists"
             }
             else {
@@ -233,10 +233,10 @@ Function Set-ESXiTagbyRelease {
         # Test if we can resolve the build, otherwise we cannot tag the host!
         [string]$current_build = $vmhost.build
         if ( $mapping_table.ContainsKey($current_build)) {
-            # Lookup the build in the hasbtable
+            # Lookup the build in the hashtable
             $tag_label = $mapping_table.$current_build
             # Get the tag we need for the current host
-            $release_tag = get-tag -name $tag_label
+            $release_tag = get-tag -name $tag_label -Category $ESXiReleaseCategoryName
 
             # Assigning a matching tag
             Write-Host "Assign tag $release_tag to host $vmhost" -ForegroundColor Green
@@ -244,7 +244,7 @@ Function Set-ESXiTagbyRelease {
         }
         else {
             # Adding NaN Tag to a host if we cannot look it up
-            $null_tag = get-tag -Name $null_tag_name
+            $null_tag = get-tag -Name $null_tag_name -Category $ESXiReleaseCategoryName
             Write-Host "Build $current_build of host $vmhost cannot be identified " -ForegroundColor Yellow
             New-TagAssignment -tag $null_tag -Entity $vmhost
         }
