@@ -137,12 +137,12 @@ Function Set-ESXiTagbyRelease {
     } else {
     Write-Host "Building list of ESXi hosts in this scope..."
     $vmhost_list = get-vmhost -Location $Entity | Where-Object { $_.ConnectionState -ne 'disconnected' }
-    # When a valid VIobject is passed on but the list is empty nothing can be done    
-    if ($vmhost_list.count -le 0) {
-            Write-Error -Message "The list of hosts is empty" -ErrorAction Stop
-        }
     }
-    
+    # When the list is empty nothing can be done    
+    if ($vmhost_list.count -le 0) {
+        Write-Error -Message "The list of hosts is empty" -ErrorAction Stop
+    }
+
     # Create a unique set of builds
     Write-Host "Building list of unique ESXi builds from the previous output"
     $unique_builds = $vmhost_list.build | Get-Unique
