@@ -1,9 +1,17 @@
-# VMware ESXi Release Tagging
+# VMware vSphere Release Tagging (formerly: VMware ESXi Release Tagging)
 
-This PowerShell module tag ESXi servers in a vCenter with a human-readable release name, e.g. ESXi_7.0_Update_1c.
-There is also a [blog post](https://www.why-did-it.fail/blog/2021-02-set-esxi-release-names-with-tags/) with a some of screenshots.
+This PowerShell module uses vSphere tags to apply a human-readable release name, e.g. ESXi_7.0_Update_1c, to ESXi.
+In the future vCenter this will be also extended to tag a vCenter object as well.    
+There is a [blog post](https://www.why-did-it.fail/blog/2021-02-set-esxi-release-names-with-tags/) available with a some of screenshots.
 
-## Usage
+## Release Notes
+Since v1.0.0 the PowerShell modules have been renamed to follow Microsoft standards of
+```powershell
+
+```
+Find release information in the [release overview](https://github.com/dominikzorgnotti/VMware-vSphere-Release-Tagging/releases).
+
+## Getting started
 
 0. Open Powershell
 
@@ -24,23 +32,44 @@ Permissions must be sufficient to add tags and a tag category at global level an
 ```powershell
 # connect-viserver $vcenter
 ```
-5. Execute the script 
+
+## Tagging ESXi hosts
+
+5. Execute the command without parameters to tag all your ESXi hosts in a vCenter 
 ```powershell
-# Set-ESXiTagbyRelease
+# Set-EsxiTagByRelease
 ```
 
 ### Parameters
+
+#### -EsxiReleaseCategoryName
+The name of the tag category within vCenter that holds the created tags. It defaults to "tc_esxi_release_names".
+
+#### -EsxiBuildsJsonFile
 As of v0.1.0 the module will try to download the release information automatically from GitHub. If you're using a proxy PowerShell v6 and newer should be able to access your system settings for that.  
 If you do not have Internet access, you can specify a custom URL or file path containing the required release information to the module. The required file with release information for ESXi can be found [here](https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json).
 
-Step 5 with custom local file location:
+Specify a custom local file location:
 ```powershell
-# Set-ESXiTagbyRelease -ESXibuildsJSONFile "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+# Set-EsxiTagByRelease -EsxiBuildsJsonFile "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
 ```
-Step 5 with custom URL:
+Specify a custom URL:
 ```powershell
-# Set-ESXiTagbyRelease -ESXibuildsJSONFile "https://192.168.10.2/path/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+# Set-EsxiTagByRelease -EsxiBuildsJsonFile "https://192.168.10.2/path/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
 ```
+
+#### -Entity
+v0.2.0 adds the optional ability to limit the tag application to a scope (i.e. not all hosts will be tagged).  
+This is provided by the the parameter "-Entity" which expects a VI object (e.g. get-cluster "production) as an argument.
+Currently, there is no support to pass on the VI object via pipeline ( | )
+
+Apply the tags only to the ESXi hosts in the "production" cluster:
+```powershell
+#  Set-EsxiTagByRelease -Entity (get-cluster "production")
+```
+
+## Tagging vCenter hosts
+Currently, a roadmap item, see [Issue #4](https://github.com/dominikzorgnotti/VMware-vSphere-Release-Tagging/issues/4)
 
 
 ## Testing
