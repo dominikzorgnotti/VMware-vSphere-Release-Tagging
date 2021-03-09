@@ -1,4 +1,4 @@
-#New-ModuleManifest -Path VMware-ESXi-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-ESXi-Release-Tagging.psm1 -Description 'Tag vSphere infrastructure with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-ESXiTagbyRelease", "Load-BuildInformationfromJSON") -PowerShellVersion '7.0' -ModuleVersion "0.2.0"
+#New-ModuleManifest -Path VMware.vSphere.Release.Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware.vSphere.Release.Tagging.psm1 -Description 'Tag vSphere infrastructure with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-ESXiTagbyRelease", "Load-BuildInformationfromJSON", "Set-VCTagbyRelease") -PowerShellVersion '7.0' -ModuleVersion "1.0.0"
 
 
 Function Load-BuildInformationfromJSON {
@@ -74,19 +74,19 @@ Function Set-ESXiTagbyRelease {
     __contact__ = "dominik@why-did-it.fail"
     __license__ = "GPLv3"
     __status__ = "released"
-    __version__ = "0.2.0"
+    __version__ = "1.0.0"
 .EXAMPLE
-  tag-esxi-with-release-name
+  Set-ESXiTagbyRelease
 .EXAMPLE
-  tag-esxi-with-release-name -Entity (get-cluster "production")
+  Set-ESXiTagbyRelease -Entity (get-cluster "production")
 .EXAMPLE
-  tag-esxi-with-release-name Set-ESXiTagbyRelease -ESXibuildsJSONFile "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+  Set-ESXiTagbyRelease -ESXibuildsJSONFile "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
 .EXAMPLE
   Set-ESXiTagbyRelease -ESXibuildsJSONFile "https://192.168.10.2/path/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json" -ESXiReleaseCategoryName "Release_Info"
 .EXAMPLE
-  tag-esxi-with-release-name -ESXiReleaseCategoryName "Release_Info"
+  Set-ESXiTagbyRelease -ESXiReleaseCategoryName "Release_Info"
 .EXAMPLE
-  tag-esxi-with-release-name -Entity (get-vmhost "esx1.corp.local")
+  Set-ESXiTagbyRelease -Entity (get-vmhost "esx1.corp.local")
 #>
 
     # Do not over-engineer: Entity will just do a basic sanity check if a valid VIobject is returned.
@@ -184,7 +184,7 @@ Function Set-ESXiTagbyRelease {
         
         if ($ESXiBuild -in $ESXiReleaseTable.PSobject.Properties.Name) {
             # Identify the release name based on the build provided as input
-            $requested_release_name = $ESXiReleaseTable.($ESXiBuild)."Version".Replace(" ", "_")
+            $requested_release_name = $ESXiReleaseTable.($ESXiBuild)."Version"
                           
             # Avoid escaping issues by replacing spaces with underscores
             $requested_release_name_fmt = $requested_release_name.Replace(" ", "_")
@@ -236,7 +236,7 @@ Function Set-ESXiTagbyRelease {
             # Lookup the build in the hasbtable
             $tag_label = $mapping_table.$current_build
             # Get the tag we need for the current host
-            $release_tag = get-tag -name $tag_label
+            $release_tag = get-tag -name $tag_label -Category $ESXiReleaseCategoryName
 
             # Assigning a matching tag
             Write-Host "Assign tag $release_tag to host $vmhost" -ForegroundColor Green
@@ -244,13 +244,124 @@ Function Set-ESXiTagbyRelease {
         }
         else {
             # Adding NaN Tag to a host if we cannot look it up
-            $null_tag = get-tag -Name $null_tag_name
+            $null_tag = get-tag -Name $null_tag_name -Category $ESXiReleaseCategoryName
             Write-Host "Build $current_build of host $vmhost cannot be identified " -ForegroundColor Yellow
             New-TagAssignment -tag $null_tag -Entity $vmhost
         }
     }
-    
-
 }
 
 
+
+Function Set-VCTagbyRelease {
+    <#
+.SYNOPSIS
+  Assigns a tag containing the vSphere release name to the connected vCenter.
+.DESCRIPTION
+  Assigns a tag containing the vSphere release name to the connected vCenter.
+.PARAMETER VCbuildsJSON
+  [optional] A path (URL or local) to a json file containing vCenter build information, it is expected that the JSON key is equal to the build number.
+.PARAMETER VCReleaseCategoryName
+  [optional] The name of the vCenter tag category, defaults to tc_vcenter_release_names
+.NOTES
+    __author__ = "Dominik Zorgnotti"
+    __contact__ = "dominik@why-did-it.fail"
+    __created__ = "2021-03-04"
+    __deprecated__ = False
+    __contact__ = "dominik@why-did-it.fail"
+    __license__ = "GPLv3"
+    __status__ = "released"
+    __version__ = "1.0.0"
+.EXAMPLE
+  Set-VCTagbyRelease
+.EXAMPLE
+  Set-VCTagbyRelease -VCbuildsJSON "c:\temp\kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+.EXAMPLE
+  Set-VCTagbyRelease -VCbuildsJSON "https://192.168.10.2/path/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json" -VCReleaseCategoryName "Release_Info"
+.EXAMPLE
+  Set-VCTagbyRelease -VCReleaseCategoryName "Release_Info"
+#>
+    param(
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
+        [string]$VCReleaseCategoryName = "tc_vcenter_release_names"
+        ,
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
+        [string]$VCbuildsJSON
+    )
+
+    # default assignments
+    # The default download URLs for the JSON data with VC release information
+    $DEFAULT_VCSA67_RELEASE_JSON = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+    $DEFAULT_VCSA70_RELEASE_JSON = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+   
+    
+    # Check if we are connected to a vCenter
+    if ($global:DefaultVIServers.count -eq 0) {
+        Write-Error -Message "Please make sure you are connected to a vCenter." -ErrorAction Stop
+    }
+
+    # Compatibility for hosts with Hyper-V modules
+    if (get-module -name Hyper-V -ErrorAction SilentlyContinue) {
+        Remove-Module -Name Hyper-V -confirm:$false
+    }
+
+    # Some nicer output to determine where we are
+    Write-Host ""
+    Write-Host "Phase 1: Preparing pre-requisites" -ForegroundColor Magenta
+    Write-Host ""
+
+    # Converting JSON to Powershell object
+    Write-Host "Reading vCenter release info..."
+    # Check if were given an explicit parameter
+    if (-not ($PSBoundParameters.ContainsKey('VCbuildsJSON'))) {
+        $VCbuildsJSONFile = XXXX
+    }
+    $VCReleaseTable = Load-BuildInformationfromJSON -ReleaseJSONLocation $VCbuildsJSONFile
+
+    # Getting tag categories ready to contain tags 
+    Write-Host "Creating required tag category with name $VCReleaseCategoryName"
+    if (Get-TagCategory -name $VCReleaseCategoryName -ErrorAction SilentlyContinue) {
+        Write-Host "Noting to do. The category $VCReleaseCategoryName already exists" -ForegroundColor Gray
+    }
+    else {
+        New-TagCategory -name $VCReleaseCategoryName -Cardinality "Single" -description "The category holds the vCenter release name tags"
+    }
+    
+    # Create a Null tag
+    Write-Host "Creating a Null tag in case the build number cannot be found"
+    $null_tag_name = "no_matching_release"
+    if (-not (Get-Tag -Name $null_tag_name -ErrorAction SilentlyContinue)) {
+        New-Tag -name $null_tag_name -Category $VCReleaseCategoryName -Description "No matching release found for the build number"
+    }
+   
+    # Build a tag for each unique build
+    Write-Host "Trying to create the required tag the identified build"
+
+    # Get the vCenter object in a nicely named object
+    $vCenter = $global:DefaultVIServers[0]
+    $vCenterBuild = $vCenter.build
+
+    # Check if we have matching build number
+    if (vCenterBuild -in $VCReleaseTable.PSobject.Properties.Name) {
+        # Identify the release name based on the build provided as input
+        $requested_release_name = $VCReleaseTable.($vCenterBuild)."Version"
+                          
+        # Avoid escaping issues by replacing spaces with underscores
+        $requested_release_name_fmt = $requested_release_name.Replace(" ", "_")
+
+        #Check for existing tags
+        if (Get-Tag -name $requested_release_name_fmt -Category $VCReleaseCategoryName -ErrorAction SilentlyContinue) {
+            Write-host "Nothing to do. Tag $requested_release_name_fmt already exists"
+        }
+        else {
+            write-host "Creating tag $requested_release_name_fmt"
+            New-Tag -name $requested_release_name_fmt -Category $VCReleaseCategoryName -Description ($VCReleaseTable.($vCenterBuild)."Version" + " (" + $VCReleaseTable.($vCenterBuild)."Release Name" + ") " + "- build: " + $vCenterBuild)
+        }
+    }
+    else {
+        # Adding NaN Tag to the vCenter if we cannot look it up
+        $null_tag = get-tag -Name $null_tag_name -Category $VCReleaseCategoryName
+        Write-Host "Build $current_build of vCenter $vcenter cannot be identified " -ForegroundColor Yellow
+        New-TagAssignment -tag $null_tag -Entity $vCenter 
+    }
+}
