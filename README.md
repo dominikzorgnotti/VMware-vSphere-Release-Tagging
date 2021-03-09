@@ -5,10 +5,7 @@ In the future vCenter this will be also extended to tag a vCenter object as well
 There is a [blog post](https://www.why-did-it.fail/blog/2021-02-set-esxi-release-names-with-tags/) available with a some of screenshots.
 
 ## Release Notes
-Since v1.0.0 the PowerShell modules have been renamed to follow Microsoft standards of
-```powershell
-
-```
+Since v1.0.0 the PowerShell module has been renamed to VMware vSphere Release Tagging.
 Find release information in the [release overview](https://github.com/dominikzorgnotti/VMware-vSphere-Release-Tagging/releases).
 
 ## Getting started
