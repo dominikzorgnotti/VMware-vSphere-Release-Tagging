@@ -5,7 +5,7 @@ In the future vCenter this will be also extended to tag a vCenter object as well
 There is a [blog post](https://www.why-did-it.fail/blog/2021-02-set-esxi-release-names-with-tags/) available with a some of screenshots.
 
 ## Release Notes
-Since v1.0.0 the PowerShell module has been renamed to VMware vSphere Release Tagging.
+Since v1.0.0 the PowerShell module has been renamed to VMware vSphere Release Tagging.  
 Find release information in the [release overview](https://github.com/dominikzorgnotti/VMware-vSphere-Release-Tagging/releases).
 
 ## Getting started
@@ -14,15 +14,15 @@ Find release information in the [release overview](https://github.com/dominikzor
 
 1. Clone the repository  
 ```powershell
-# git clone https://github.com/dominikzorgnotti/VMware-ESXi-Release-Tagging.git
+# git clone https://github.com/dominikzorgnotti/VMware-vSphere-Release-Tagging.git
 ```
 2. Move into the cloned directory
 ```powershell
-# cd VMware-ESXi-Release-Tagging
+# cd VMware-vSphere-Release-Tagging
 ```
 3. Import the module from the current working directory
 ```powershell
-# Import-Module .\VMware-ESXi-Release-Tagging.psd1
+# Import-Module .\VMware-vSphere-Release-Tagging.psd1
 ```
 4. Make sure you are connected to a vCenter.  
 Permissions must be sufficient to add tags and a tag category at global level and set tags to all ESXi hosts.
