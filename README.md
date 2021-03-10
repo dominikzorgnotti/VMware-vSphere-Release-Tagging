@@ -1,6 +1,6 @@
 # VMware vSphere Release Tagging (formerly: VMware ESXi Release Tagging)
 
-This PowerShell module uses vSphere tags to apply a human-readable release name, e.g. ESXi_7.0_Update_1c, to ESXi.
+This PowerShell module uses vSphere tags to apply a human-readable release name, e.g. `ESXi_7.0_Update_1c`, to ESXi.
 In the future vCenter this will be also extended to tag a vCenter object as well.  
 There is a [blog post](https://www.why-did-it.fail/blog/2021-02-set-esxi-release-names-with-tags/) available with a some of screenshots.
 
@@ -30,6 +30,8 @@ Find release information in the [release overview](https://github.com/dominikzor
 ```powershell
 # Import-Module .\VMware-vSphere-Release-Tagging.psd1
 ```
+  -  Potential errors with importing the module are mostly related to the lack of signing. 
+  - If you are okay with this, you can work around by setting the PowerShell execution policy to `Bypass` (for this file).
 
 4. Make sure you are connected to a vCenter.  
    Permissions must be sufficient to add tags and a tag category at global level and set tags to all ESXi hosts.
@@ -50,7 +52,7 @@ Find release information in the [release overview](https://github.com/dominikzor
 
 #### -EsxiReleaseCategoryName
 
-The name of the tag category within vCenter that holds the created tags. It defaults to "tc_esxi_release_names".
+The name of the tag category within vCenter that holds the created tags. It defaults to `tc_esxi_release_names`.
 
 #### -EsxiBuildsJsonFile
 
@@ -72,8 +74,8 @@ Specify a custom URL:
 #### -Entity
 
 v0.2.0 adds the optional ability to limit the tag application to a scope (i.e. not all hosts will be tagged).  
-This is provided by the the parameter "-Entity" which expects a VI object (e.g. get-cluster "production) as an argument.
-Currently, there is no support to pass on the VI object via pipeline ( | )
+This is provided by the the parameter `-Entity` which expects a VI object (e.g. `get-cluster "production`) as an argument.
+Currently, there is no support to pass on the VI object via pipeline ( `|` )
 
 Apply the tags only to the ESXi hosts in the "production" cluster:
 
