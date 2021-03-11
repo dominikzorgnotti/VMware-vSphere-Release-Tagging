@@ -101,13 +101,12 @@ Function Set-EsxiTagByRelease {
         [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         $Entity
     )
-    process {
-        # default assignments
-        # The default download URL for the JSON data with ESXi release information
-        $DEFAULT_ESXI_RELEASE_JSON = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
-        # Future addon-on? The valid entity types that can be given to get-vmhost as an argument for the -Location parameter
-        # $VALID_ENTITY_TYPES = @("VMHost", "Datacenter", "Cluster", "Folder")
-    
+    begin {
+        # Some nicer output to determine where we are
+        Write-Host ""
+        Write-Host "Phase 1: Preparing pre-requisites" -ForegroundColor Magenta
+        Write-Host ""
+
         # Check if we are connected to a vCenter
         if ($global:DefaultVIServers.count -eq 0) {
             Write-Error -Message "Please make sure you are connected to a vCenter." -ErrorAction Stop
@@ -118,13 +117,17 @@ Function Set-EsxiTagByRelease {
             Remove-Module -Name Hyper-V -confirm:$false
         }
 
-        # Some nicer output to determine where we are
-        Write-Host ""
-        Write-Host "Phase 1: Preparing pre-requisites" -ForegroundColor Magenta
-        Write-Host ""
+    }
+    process {
+        # default assignments
+        # The default download URL for the JSON data with ESXi release information
+        $DEFAULT_ESXI_RELEASE_JSON = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143832_vmware_vsphere_esxi_table0_release_as-index.json"
+        # Future addon-on? The valid entity types that can be given to get-vmhost as an argument for the -Location parameter
+        # $VALID_ENTITY_TYPES = @("VMHost", "Datacenter", "Cluster", "Folder")
+    
 
         # Converting JSON to Powershell object
-        Write-Host "Reading ESXi release info..."
+        Write-Host "Importing ESXi release info..."
         # Check if were given an explicit parameter(https://stackoverflow.com/questions/48643250/how-to-check-if-a-powershell-optional-argument-was-set-by-caller), if not try to download from default location
         if (-not ($PSBoundParameters.ContainsKey('EsxiBuildsJsonFile'))) {
             $EsxiBuildsJsonFile = $DEFAULT_ESXI_RELEASE_JSON
@@ -132,7 +135,7 @@ Function Set-EsxiTagByRelease {
         $EsxiReleaseTable = Import-BuildInformationFromJson -ReleaseJsonLocation $EsxiBuildsJsonFile
 
     
-        # By default, all hosts that are not disconnected will be targeted
+        # By default, all hosts in a vCenter that are not disconnected will be targeted
         if (-not ($PSBoundParameters.ContainsKey('Entity'))) {
             Write-Host "Building list of all ESXi hosts..."
             $VmHostList = get-vmhost | Where-Object { $_.ConnectionState -ne 'disconnected' }
@@ -148,115 +151,84 @@ Function Set-EsxiTagByRelease {
             }
         }
     
-        # When the list is empty nothing can be done    
+        # Backstop: When the list of hosts is empty nothing can be done    
         if ($VmHostList.count -le 0) {
             Write-Error -Message "The list of hosts is empty" -ErrorAction Stop
         }
 
-         # Getting tag category ready to contain the ESXi release tags 
-         Write-Host "Creating required tag category with name $EsxiReleaseCategoryName"
-         if (Get-TagCategory -name $EsxiReleaseCategoryName -ErrorAction SilentlyContinue) {
-             Write-Host "Noting to do. The category $EsxiReleaseCategoryName already exists" -ForegroundColor Gray
-         }
-         else {
-             New-TagCategory -name $EsxiReleaseCategoryName -Cardinality "Single" -description "The category holds the ESXi release name tags" -EntityType "VMHost"
-         }
+        # Getting tag category ready to contain the ESXi release tags 
+        Write-Host "Creating required tag category with name $EsxiReleaseCategoryName"
+        if (Get-TagCategory -name $EsxiReleaseCategoryName -ErrorAction SilentlyContinue) {
+            Write-Host "Noting to do. The category $EsxiReleaseCategoryName already exists" -ForegroundColor Gray
+        }
+        else {
+            New-TagCategory -name $EsxiReleaseCategoryName -Cardinality "Single" -description "The category holds the ESXi release name tags" -EntityType "VMHost"
+        }
      
-         # Create a Null tag
-         Write-Host "Creating a Null tag in case the build number cannot be found"
-         $NullTagName = "no_matching_release"
-         if (-not (Get-Tag -Name $NullTagName -Category $EsxiReleaseCategoryName -ErrorAction SilentlyContinue)) {
-             New-Tag -name $NullTagName -Category $EsxiReleaseCategoryName -Description "No matching release found for the build number"
-         }
+        # Create a Null tag in case the release cannot be found
+        Write-Host "Creating a Null tag in case the build number cannot be found"
+        $NullTagName = "no_matching_release"
+        if (-not (Get-Tag -Name $NullTagName -Category $EsxiReleaseCategoryName -ErrorAction SilentlyContinue)) {
+            New-Tag -name $NullTagName -Category $EsxiReleaseCategoryName -Description "No matching release found for the build number"
+        }
+        $NullTag = Get-Tag -Name $NullTagName -Category $EsxiReleaseCategoryName
         
-        # Create a unique set of builds
+        # Create a unique set of builds from the list of hosts to avoid duplicate work
         Write-Host "Building list of unique ESXi builds from the previous output"
         $UniqueBuilds = $VmHostList.build | Get-Unique
 
-   
-        # Build a tag for each unique build
-        Write-Host "Trying to create the required tags for each of the identified builds"
+        Write-Host ""
+        Write-Host "Phase 2: Building tags and applying information to the ESXi hosts" -ForegroundColor Magenta
+        Write-Host ""
 
-        $MappingTable = @{}
+        # for each build in builds, build a tag and assign to current_tag. if not found, assign null tag to current_tag
+        # filter hosts by build, assign current tag
 
         foreach ($EsxiBuild in $UniqueBuilds) {
             Write-Host "Working on tags for ESXi build $EsxiBuild ..."
-        
-            # for each build in builds, build a tag and assign to current_tag. if not found, assign null tag to current_tag
-            # filter hosts by build, assign current tag
 
-
+            # If we have the build in the JSON file, then build and assign the matching tag to the $DesignatedHostTag variable
             if ($EsxiBuild -in $EsxiReleaseTable.PSobject.Properties.Name) {
+                
                 # Identify the release name based on the build provided as input
-                $RequestedReleaseName = $EsxiReleaseTable.($EsxiBuild)."Version"
-                          
+                $RequestedReleaseName = $EsxiReleaseTable.($EsxiBuild)."Version"          
                 # Avoid escaping issues by replacing spaces with underscores
                 $RequestedReleaseNameFormatted = $RequestedReleaseName.Replace(" ", "_")
 
-                # Put the build and key tag name into the table
-                [string]$EsxiBuildString = $EsxiBuild
-                $MappingTable.add($EsxiBuildString, $RequestedReleaseNameFormatted)
-
-                foreach ($VmHost in ($VmHostList | where { $_.Build -eq $EsxiBuild) ) {
-        
-                    # Check if a tag is already assigned to a host and just remove it
-                    if (Get-TagAssignment -Category $EsxiReleaseCategoryName -Entity $VmHost -ErrorAction SilentlyContinue) {
-                        $CurrentHostTag = Get-TagAssignment -Category $EsxiReleaseCategoryName -Entity $VmHost
-                        Write-Host "Remove old tag from host $VmHost" -ForegroundColor Yellow
-                        Remove-TagAssignment -TagAssignment $CurrentHostTag -Confirm:$false
-                    }
-        
-                    # Test if we can resolve the build, otherwise we cannot tag the host!
-                    [string]$CurrentEsxiBuild = $VmHost.build
-                    if ( $MappingTable.ContainsKey($CurrentEsxiBuild)) {
-                        # Lookup the build in the hashtable
-                        $TagLabel = $MappingTable.$CurrentEsxiBuild
-                        # Get the tag we need for the current host
-                        $EsxiReleaseTag = get-tag -name $TagLabel -Category $EsxiReleaseCategoryName
-        
-                        # Assigning a matching tag
-                        Write-Host "Assign tag $EsxiReleaseTag to host $VmHost" -ForegroundColor Green
-                        New-TagAssignment -Tag $EsxiReleaseTag -Entity $VmHost 
-                    }
-                    
-                }
-
-
-            }
-            else {
-                write-host "Cannot find a name for the provided build $EsxiBuild." -ForegroundColor Red
-                $RequestedReleaseNameFormatted = $false
-
-                # Adding NaN Tag to a host if we cannot look it up
-                $EsxiNullTag = get-tag -Name $NullTagName -Category $EsxiReleaseCategoryName
-                Write-Host "Build $CurrentEsxiBuild of host $VmHost cannot be identified " -ForegroundColor Yellow
-                New-TagAssignment -tag $EsxiNullTag -Entity $VmHost
-
-            }
-        
-            # If the build is found in our table, create a tag
-            if ($RequestedReleaseNameFormatted) {
-
+                # Check if a matching tag already exists in the vCenter
                 if (Get-Tag -name $RequestedReleaseNameFormatted -Category $EsxiReleaseCategoryName -ErrorAction SilentlyContinue) {
                     Write-host "Nothing to do. Tag $RequestedReleaseNameFormatted already exists"
                 }
                 else {
+                    # Create the tag if it does not exist
                     write-host "Creating tag $RequestedReleaseNameFormatted"
                     New-Tag -name $RequestedReleaseNameFormatted -Category $EsxiReleaseCategoryName -Description ($EsxiReleaseTable.($EsxiBuild)."Version" + " (" + $EsxiReleaseTable.($EsxiBuild)."Release Name" + ") " + "- build: " + $EsxiBuild)
                 }
-            
+                # Now that the tag is available, assign it to the $DesignatedHostTag variable for further processing
+                $DesignatedHostTag = Get-Tag -name $RequestedReleaseNameFormatted -Category $EsxiReleaseCategoryName
+            }
+            else {
+                # handle the case where the build has not been found by assigning a Null-tag to the $DesignatedHostTag 
+                write-host "Cannot find a name for the provided build $EsxiBuild!" -ForegroundColor Red
+                $DesignatedHostTag = $NullTag
+            }
 
-
+            # Now, loop through all ESXi hosts with the $EsxiBuild and assign the $DesignatedHostTag 
+            foreach ($VmHost in ($VmHostList | Where-Object { $_.Build -eq $EsxiBuild })) {
+        
+                # Check if a release tag is already assigned to a host and remove it makes no sense to have two release tags on the same host
+                if (Get-TagAssignment -Category $EsxiReleaseCategoryName -Entity $VmHost -ErrorAction SilentlyContinue) {
+                    $CurrentReleaseTag = Get-TagAssignment -Category $EsxiReleaseCategoryName -Entity $VmHost
+                    Write-Host "Removing old release tag from host $VmHost" -ForegroundColor Yellow
+                    Remove-TagAssignment -TagAssignment $CurrentReleaseTag -Confirm:$false
+                }      
+                # Finally, assign the tag
+                Write-Host "Assigning tag $DesignatedHostTag to host $VmHost" -ForegroundColor Green
+                New-TagAssignment -Tag $DesignatedHostTag -Entity $VmHost
             }
         }
-    
-        # Some nicer output to determine where we are
-        Write-Host ""
-        Write-Host "Phase 2: Apply information to ESXi hosts" -ForegroundColor Magenta
-        Write-Host ""
-    
-    
     }
 }
+                    
 
 
