@@ -1,4 +1,4 @@
-#New-ModuleManifest -Path VMware-vSphere-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-vSphere-Release-Tagging.psm1 -Description 'Tag vSphere infrastructure with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-EsxiTagByRelease", "Import-BuildInformationFromJson") -PowerShellVersion '7.0' -ModuleVersion "1.1.0"
+#New-ModuleManifest -Path VMware-vSphere-Release-Tagging.psd1 -Author 'Dominik Zorgnotti' -RootModule VMware-vSphere-Release-Tagging.psm1 -Description 'Tag vSphere infrastructure with canonical release names' -CompanyName "Why did it Fail?" -RequiredModules @("VMware.VimAutomation.Core", "VMware.VimAutomation.Common") -FunctionsToExport @("Set-EsxiTagByRelease", "Import-BuildInformationFromJson") -PowerShellVersion '7.0' -ModuleVersion "1.1.1"
 
 
 Function Import-BuildInformationFromJson {
@@ -73,7 +73,7 @@ Function Set-EsxiTagByRelease {
     __contact__ = "dominik@why-did-it.fail"
     __license__ = "GPLv3"
     __status__ = "released"
-    __version__ = "1.1.0"
+    __version__ = "1.1.1"
 .EXAMPLE
   Set-EsxiTagByRelease
 .EXAMPLE
@@ -133,8 +133,13 @@ Function Set-EsxiTagByRelease {
             $EsxiBuildsJsonFile = $DEFAULT_ESXI_RELEASE_JSON
         }
         $EsxiReleaseTable = Import-BuildInformationFromJson -ReleaseJsonLocation $EsxiBuildsJsonFile
+          
+        # Backstop: When the list of releases is empty nothing can be done    
+        if (-not $EsxiReleaseTable) {
+            Write-Error -Message "The list of ESXi releases is empty" -ErrorAction Stop
+        }
 
-    
+
         # By default, all hosts in a vCenter that are not disconnected will be targeted
         if (-not ($PSBoundParameters.ContainsKey('Entity'))) {
             Write-Host "Building list of all ESXi hosts..."
@@ -157,11 +162,8 @@ Function Set-EsxiTagByRelease {
         }
 
         # Getting tag category ready to contain the ESXi release tags 
-        Write-Host "Creating required tag category with name $EsxiReleaseCategoryName"
-        if (Get-TagCategory -name $EsxiReleaseCategoryName -ErrorAction SilentlyContinue) {
-            Write-Host "Noting to do. The category $EsxiReleaseCategoryName already exists" -ForegroundColor Gray
-        }
-        else {
+        if (-not (Get-TagCategory -name $EsxiReleaseCategoryName -ErrorAction SilentlyContinue)) {
+            Write-Host "Creating required tag category with name $EsxiReleaseCategoryName"
             New-TagCategory -name $EsxiReleaseCategoryName -Cardinality "Single" -description "The category holds the ESXi release name tags" -EntityType "VMHost"
         }
      
@@ -198,16 +200,13 @@ Function Set-EsxiTagByRelease {
                 $RequestedReleaseName = $EsxiReleaseTable.($EsxiBuild)."Release Name"
 
                 # Check if a matching tag already exists in the vCenter
-                if (Get-Tag -name $RequestedReleaseVersionFormatted -Category $EsxiReleaseCategoryName -ErrorAction SilentlyContinue) {
-                    Write-host "Nothing to do. Tag $RequestedReleaseVersionFormatted already exists"
-                }
-                else {
+                if (-not (Get-Tag -name $RequestedReleaseVersionFormatted -Category $EsxiReleaseCategoryName -ErrorAction SilentlyContinue)) {
                     # Create the tag if it does not exist
                     write-host "Creating tag $RequestedReleaseVersionFormatted"
                     New-Tag -name $RequestedReleaseVersionFormatted -Category $EsxiReleaseCategoryName -Description ($RequestedReleaseVersion + " (" + $RequestedReleaseName + ") " + "- build: " + $EsxiBuild)
                 }
-                # Now that the tag is available, assign it to the $DesignatedHostTag variable for further processing
-                $DesignatedHostTag = Get-Tag -name $RequestedReleaseVersionFormatted -Category $EsxiReleaseCategoryName
+                # Now that the tag is available, assign it to the $DesignatedHostTag variable for further processing. Backstop: If the tag is empty, stop here!
+                $DesignatedHostTag = Get-Tag -name $RequestedReleaseVersionFormatted -Category $EsxiReleaseCategoryName -ErrorAction Stop
             }
             else {
                 # handle the case where the build has not been found by assigning a Null-tag to the $DesignatedHostTag 
