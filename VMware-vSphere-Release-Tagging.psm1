@@ -190,22 +190,24 @@ Function Set-EsxiTagByRelease {
             # If we have the build in the JSON file, then build and assign the matching tag to the $DesignatedHostTag variable
             if ($EsxiBuild -in $EsxiReleaseTable.PSobject.Properties.Name) {
                 
-                # Identify the release name based on the build provided as input
-                $RequestedReleaseName = $EsxiReleaseTable.($EsxiBuild)."Version"          
+                # Identify the release version based on the build provided as input
+                $RequestedReleaseVersion = $EsxiReleaseTable.($EsxiBuild)."Version"          
                 # Avoid escaping issues by replacing spaces with underscores
-                $RequestedReleaseNameFormatted = $RequestedReleaseName.Replace(" ", "_")
+                $RequestedReleaseVersionFormatted = $RequestedReleaseVersion.Replace(" ", "_")
+                # Release Name
+                $RequestedReleaseName = $EsxiReleaseTable.($EsxiBuild)."Release Name"
 
                 # Check if a matching tag already exists in the vCenter
-                if (Get-Tag -name $RequestedReleaseNameFormatted -Category $EsxiReleaseCategoryName -ErrorAction SilentlyContinue) {
-                    Write-host "Nothing to do. Tag $RequestedReleaseNameFormatted already exists"
+                if (Get-Tag -name $RequestedReleaseVersionFormatted -Category $EsxiReleaseCategoryName -ErrorAction SilentlyContinue) {
+                    Write-host "Nothing to do. Tag $RequestedReleaseVersionFormatted already exists"
                 }
                 else {
                     # Create the tag if it does not exist
-                    write-host "Creating tag $RequestedReleaseNameFormatted"
-                    New-Tag -name $RequestedReleaseNameFormatted -Category $EsxiReleaseCategoryName -Description ($EsxiReleaseTable.($EsxiBuild)."Version" + " (" + $EsxiReleaseTable.($EsxiBuild)."Release Name" + ") " + "- build: " + $EsxiBuild)
+                    write-host "Creating tag $RequestedReleaseVersionFormatted"
+                    New-Tag -name $RequestedReleaseVersionFormatted -Category $EsxiReleaseCategoryName -Description ($RequestedReleaseVersion + " (" + $RequestedReleaseName + ") " + "- build: " + $EsxiBuild)
                 }
                 # Now that the tag is available, assign it to the $DesignatedHostTag variable for further processing
-                $DesignatedHostTag = Get-Tag -name $RequestedReleaseNameFormatted -Category $EsxiReleaseCategoryName
+                $DesignatedHostTag = Get-Tag -name $RequestedReleaseVersionFormatted -Category $EsxiReleaseCategoryName
             }
             else {
                 # handle the case where the build has not been found by assigning a Null-tag to the $DesignatedHostTag 
