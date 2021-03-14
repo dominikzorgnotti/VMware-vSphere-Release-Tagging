@@ -84,23 +84,53 @@ Apply the tags only to the ESXi hosts in the "production" cluster:
 ```
 
 ## Tagging vCenter hosts
+Since v1.20 you can also tag a vCenter
 
-Currently, a roadmap item, see [Issue #4](https://github.com/dominikzorgnotti/VMware-vSphere-Release-Tagging/issues/4)
+
+5. Execute the command without parameters to tag all your ESXi hosts in a vCenter
+
+```powershell
+# Set-VcTagByRelease
+```
+
+### Parameters
+
+#### -VcReleaseCategoryName
+
+The name of the tag category within vCenter that holds the created tags. It defaults to `tc_vcenter_release_names`.
+
+#### -VcBuildsJsonFile
+
+The module will try to download the release information automatically from GitHub. If you're using a proxy PowerShell v6 and newer should be able to access your system settings for that.  
+If you do not have Internet access, you can specify a custom URL or file path containing the required release information to the module. The required file with release information for ESXi can be found [here](https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143838_vmware_vcenter_server_appliance_all_vcenter_builds_as-index.json).
+
+Specify a custom local file location:
+
+```powershell
+# x"
+```
+
+Specify a custom URL:
+
+```powershell
+# x
+```
 
 ## Testing
 
-I have tested the module against:
-
+Community tested:  
 - Client operating system:
   - Microsoft Windows: 10.0.17763
+  - Mac OS X Catalina
 - vSphere:
   - vCenter Server:
-    - 7.0: Update 1d
+    - 7.0: Update 1d, Update 2
   - ESXi hosts:
-    - 7.0: Update 1c, Update 1d
+    - 6.7: EP 17
+    - 7.0: Update 1c, Update 1d, Update 2
 - PowerShell:
-  - Core: v7.1.1, v7.1.2
-- PowerCli modules: 12.2
+  - Core: v7.1.1, v7.1.2, v7.1.3
+- PowerCli modules: 12.1, 12.2
 
 ## Acknowledgements
 
