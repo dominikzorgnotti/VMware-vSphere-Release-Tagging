@@ -234,6 +234,7 @@ Function Set-EsxiTagByRelease {
 
 
 
+
 Function Set-VcTagByRelease {
     <#
 .SYNOPSIS
@@ -247,12 +248,12 @@ Function Set-VcTagByRelease {
 .NOTES
     __author__ = "Dominik Zorgnotti"
     __contact__ = "dominik@why-did-it.fail"
-    __created__ = "2021-03-14"
+    __created__ = "2021-03-16"
     __deprecated__ = False
     __contact__ = "dominik@why-did-it.fail"
     __license__ = "GPLv3"
     __status__ = "released"
-    __version__ = "1.2.1"
+    __version__ = "1.2.0"
 .EXAMPLE
   Set-VcTagByRelease
 .EXAMPLE
@@ -288,7 +289,7 @@ Function Set-VcTagByRelease {
     }
     process {
         # default assignments
-        # The default download URL for the JSON data with ESXi release information
+        # The default download URL for the JSON data with vCenter release information
         $DEFAULT_VC_RELEASE_JSON = "https://raw.githubusercontent.com/dominikzorgnotti/vmware_product_releases_machine-readable/main/index/kb2143838_vmware_vcenter_server_appliance_all_vcenter_builds_as-index.json"
        
         # Converting JSON to Powershell object
@@ -318,10 +319,10 @@ Function Set-VcTagByRelease {
         }
         $NullTag = Get-Tag -Name $NullTagName -Category $VcReleaseCategoryName
             
-        # Get the vCenter object in a nicely named object.
-        # Thanks to Cory Fenton for the how-to
+        # Get the vCenter object in a nicely named object
         $Vcenter = $global:DefaultVIServers[0]
         $VcenterBuild = $Vcenter.build
+        $VcenterObject = get-folder "Datacenters"
 
         # Check if we have matching build number
         if ($VcenterBuild -in $VCReleaseTable.PSobject.Properties.Name) {
@@ -350,15 +351,16 @@ Function Set-VcTagByRelease {
 
                   
         # Check if a release tag is already assigned to a vC and remove it.
-        if (Get-TagAssignment -Category $VcReleaseCategoryName -Entity $Vcenter -ErrorAction SilentlyContinue) {
-            $CurrentReleaseTag = $Vcenter | Get-TagAssignment -Category $VcReleaseCategoryName
+        if (Get-TagAssignment -Category $VcReleaseCategoryName -Entity $VcenterObject -ErrorAction SilentlyContinue) {
+            $CurrentReleaseTag =  Get-TagAssignment -Category $VcReleaseCategoryName -Entity $VcenterObject
             Write-Host "Removing old release tag from vCenter $Vcenter" -ForegroundColor Yellow
             Remove-TagAssignment -TagAssignment $CurrentReleaseTag -Confirm:$false
         }      
         # Finally, assign the tag
         Write-Host "Assigning tag $DesignatedVcTag to vCenter $Vcenter" -ForegroundColor Green
-        $Vcenter | New-TagAssignment -Tag $DesignatedVcTag
+        New-TagAssignment -Tag $DesignatedVcTag -Entity $VcenterObject
     }
 }
+
 
 
