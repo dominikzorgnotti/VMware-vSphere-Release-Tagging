@@ -84,7 +84,7 @@ Apply the tags only to the ESXi hosts in the "production" cluster:
 ```
 
 ## Tagging vCenter hosts
-Since v1.20 you can also tag a vCenter
+Since v1.20 you can also tag a vCenter with a release name.
 
 
 5. Execute the command without parameters to tag all your ESXi hosts in a vCenter
@@ -107,13 +107,13 @@ If you do not have Internet access, you can specify a custom URL or file path co
 Specify a custom local file location:
 
 ```powershell
-# x"
+# Set-VcTagByRelease -VcBuildsJsonFile "c:\temp\kb2143838_vmware_vcenter_server_appliance_all_vcenter_builds_as-index.json"
 ```
 
 Specify a custom URL:
 
 ```powershell
-# x
+# Set-VcTagByRelease -VcBuildsJsonFile "https://192.168.10.2/path/kb2143838_vmware_vcenter_server_appliance_all_vcenter_builds_as-index.json"
 ```
 
 ## Testing
