@@ -352,7 +352,7 @@ Function Set-VcTagByRelease {
                   
         # Check if a release tag is already assigned to a vC and remove it.
         if (Get-TagAssignment -Category $VcReleaseCategoryName -Entity $VcenterObject -ErrorAction SilentlyContinue) {
-            $CurrentReleaseTag =  Get-TagAssignment -Category $VcReleaseCategoryName -Entity $VcenterObject
+            $CurrentReleaseTag = Get-TagAssignment -Category $VcReleaseCategoryName -Entity $VcenterObject
             Write-Host "Removing old release tag from vCenter $Vcenter" -ForegroundColor Yellow
             Remove-TagAssignment -TagAssignment $CurrentReleaseTag -Confirm:$false
         }      
